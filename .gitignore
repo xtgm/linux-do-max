@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+logs/
+*.log
+
+# Debug files
+debug*.png
+debug*.html
+*.png
+*.html
+!README.md
+
+# Config with secrets
+config.yaml
+
+# OS
+.DS_Store
+Thumbs.db
+nul
+
+# Browser data
+.linuxdo-browser/
+data/

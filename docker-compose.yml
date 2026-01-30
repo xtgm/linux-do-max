@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  linuxdo-checkin:
+    build: .
+    container_name: linuxdo-checkin
+    restart: unless-stopped
+    volumes:
+      # 持久化用户数据目录（保存登录状态）
+      - ./data/browser:/root/.linuxdo-browser
+      # 持久化日志
+      - ./logs:/app/logs
+      # 配置文件（可选，也可以用环境变量）
+      - ./config.yaml:/app/config.yaml:ro
+    environment:
+      # 账号配置（可选）
+      - LINUXDO_USERNAME=
+      - LINUXDO_PASSWORD=
+      # Telegram 通知
+      - TG_BOT_TOKEN=
+      - TG_CHAT_ID=
+      # 签到配置
+      - BROWSE_COUNT=10
+      - LIKE_PROBABILITY=0.3
+      # 浏览器配置
+      - HEADLESS=false
+
+  # 定时任务调度器（使用 ofelia）
+  ofelia:
+    image: mcuadros/ofelia:latest
+    container_name: linuxdo-scheduler
+    restart: unless-stopped
+    depends_on:
+      - linuxdo-checkin
+    command: daemon --docker
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    labels:
+      # 08:00 Telegram 提醒
+      - "ofelia.job-exec.reminder-am.schedule=0 0 8 * * *"
+      - "ofelia.job-exec.reminder-am.container=linuxdo-checkin"
+      - "ofelia.job-exec.reminder-am.command=python reminder.py"
+      # 08:01 自动签到
+      - "ofelia.job-exec.checkin-am.schedule=0 1 8 * * *"
+      - "ofelia.job-exec.checkin-am.container=linuxdo-checkin"
+      - "ofelia.job-exec.checkin-am.command=python main.py"
+      # 20:00 Telegram 提醒
+      - "ofelia.job-exec.reminder-pm.schedule=0 0 20 * * *"
+      - "ofelia.job-exec.reminder-pm.container=linuxdo-checkin"
+      - "ofelia.job-exec.reminder-pm.command=python reminder.py"
+      # 20:01 自动签到
+      - "ofelia.job-exec.checkin-pm.schedule=0 1 20 * * *"
+      - "ofelia.job-exec.checkin-pm.container=linuxdo-checkin"
+      - "ofelia.job-exec.checkin-pm.command=python main.py"

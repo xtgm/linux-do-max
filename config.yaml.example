@@ -1,0 +1,40 @@
+# LinuxDO 签到配置文件
+# 优先级：环境变量 > 此配置文件
+
+# ========== 账号配置 ==========
+# 用户名（可选，首次登录后会保存登录状态）
+username: ""
+# 密码（可选）
+password: ""
+# Cookie（备选登录方式，可选）
+cookie: ""
+
+# ========== 浏览器配置 ==========
+# 用户数据目录（保存登录状态）
+# 默认: ~/.linuxdo-browser/
+user_data_dir: ""
+
+# 是否无头模式（默认 false，有头模式）
+# 有头模式 CF 验证通过率更高
+headless: false
+
+# 浏览器路径（可选，留空使用系统默认）
+browser_path: ""
+
+# ========== 签到配置 ==========
+# 浏览帖子数量
+browse_count: 10
+
+# 点赞概率（0-1，0.3 表示 30%）
+like_probability: 0.3
+
+# 浏览间隔（秒）
+browse_interval_min: 3
+browse_interval_max: 8
+
+# ========== Telegram 通知 ==========
+# Bot Token（从 @BotFather 获取）
+tg_bot_token: ""
+
+# Chat ID（从 @userinfobot 获取）
+tg_chat_id: ""
