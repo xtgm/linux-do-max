@@ -304,8 +304,31 @@ first_login() {
     # 检查是否有图形界面
     if [ -z "$DISPLAY" ]; then
         print_warning "未检测到图形界面"
-        print_info "请通过 VNC 或本地桌面运行首次登录"
-        print_info "或设置 DISPLAY 环境变量后重试"
+        echo ""
+        echo "首次登录需要图形界面来手动操作浏览器登录。"
+        echo ""
+        echo "请选择以下方式之一："
+        echo ""
+        echo "  方式1: VNC 远程桌面（推荐）"
+        echo "    1) 在 ARM 设备上安装 VNC: sudo apt install tigervnc-standalone-server"
+        echo "    2) 启动 VNC: vncserver :1"
+        echo "    3) 用 VNC 客户端连接后，在 VNC 桌面中运行本脚本"
+        echo ""
+        echo "  方式2: SSH X11 转发"
+        echo "    1) 在本地电脑安装 X Server (Windows: VcXsrv/Xming, Mac: XQuartz)"
+        echo "    2) SSH 连接时加 -X 参数: ssh -X user@arm-device"
+        echo "    3) 设置 DISPLAY: export DISPLAY=localhost:10.0"
+        echo "    4) 重新运行本脚本"
+        echo ""
+        echo "  方式3: 直接连接显示器"
+        echo "    将 ARM 设备连接到显示器，在本地桌面环境中运行"
+        echo ""
+        echo "  方式4: 在其他电脑完成首次登录"
+        echo "    1) 在有图形界面的电脑上运行首次登录"
+        echo "    2) 将 ~/.linuxdo-browser 目录复制到 ARM 设备"
+        echo "    3) 之后的自动签到可以在 ARM 设备上无头运行"
+        echo ""
+        read -p "按 Enter 返回主菜单..."
         return
     fi
 
