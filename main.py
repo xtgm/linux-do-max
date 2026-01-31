@@ -7,14 +7,17 @@ LinuxDO 自动签到工具
 2. 方案B：青龙面板调用
 
 使用方法：
-    python main.py [--first-login]
+    python main.py [--first-login] [--check-update] [--no-update-check]
 
 参数：
-    --first-login  首次登录模式，会打开有头浏览器等待手动登录
+    --first-login     首次登录模式，会打开有头浏览器等待手动登录
+    --check-update    仅检查更新
+    --no-update-check 跳过更新检查
 """
 import sys
 import argparse
 from core.config import config
+from version import __version__
 
 
 def first_login():
@@ -112,7 +115,38 @@ def main():
         action="store_true",
         help="首次登录模式，打开浏览器等待手动登录"
     )
+    parser.add_argument(
+        "--check-update",
+        action="store_true",
+        help="仅检查更新"
+    )
+    parser.add_argument(
+        "--no-update-check",
+        action="store_true",
+        help="跳过更新检查"
+    )
     args = parser.parse_args()
+
+    # 显示版本
+    print(f"LinuxDO 签到工具 v{__version__}")
+    print()
+
+    # 仅检查更新
+    if args.check_update:
+        from updater import prompt_update
+        prompt_update()
+        return 0
+
+    # 启动时检查更新（静默模式）
+    if not args.no_update_check:
+        try:
+            from updater import check_update
+            update_info = check_update(silent=True)
+            if update_info:
+                print(f"[提示] 发现新版本 v{update_info['latest_version']}，运行 --check-update 查看详情")
+                print()
+        except:
+            pass
 
     if args.first_login:
         first_login()
