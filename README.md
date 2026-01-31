@@ -897,13 +897,157 @@ deploy:
 | `docker-compose.arm.yml` | ARM 专用 Docker Compose |
 | `scripts/setup_arm.sh` | ARM 设备安装脚本 |
 
+#### 无图形界面解决方案（重要）
+
+ARM 设备（如电视盒子、无桌面服务器）通常没有图形界面，首次登录会提示"未检测到图形界面"。以下是 4 种解决方案：
+
+**方案一：VNC 远程桌面（推荐）**
+
+```bash
+# 1. 在 ARM 设备上安装 VNC 服务器
+# Debian/Ubuntu/Armbian
+sudo apt install tigervnc-standalone-server
+
+# 2. 启动 VNC 服务（首次需要设置密码）
+vncserver :1
+
+# 3. 用 VNC 客户端连接
+# 地址: ARM设备IP:5901
+# 推荐客户端: RealVNC Viewer, TigerVNC
+
+# 4. 在 VNC 桌面中运行首次登录
+export DISPLAY=:1
+./scripts/setup_arm.sh
+# 选择 7. 首次登录
+```
+
+**方案二：SSH X11 转发**
+
+```bash
+# 1. 在本地电脑安装 X Server
+# Windows: 安装 VcXsrv 或 Xming
+# macOS: 安装 XQuartz (brew install --cask xquartz)
+# Linux: 已内置
+
+# 2. SSH 连接时启用 X11 转发
+ssh -X user@arm-device
+
+# 3. 设置 DISPLAY 环境变量
+export DISPLAY=localhost:10.0
+
+# 4. 运行首次登录
+./scripts/setup_arm.sh
+# 选择 7. 首次登录
+```
+
+**方案三：直接连接显示器**
+
+将 ARM 设备通过 HDMI 连接到显示器，在本地桌面环境中运行首次登录。
+
+**方案四：在其他电脑完成首次登录（最简单）**
+
+适用于：电视盒子、无桌面服务器、纯 SSH 环境
+
+```bash
+# ========== 在有图形界面的电脑上操作 ==========
+
+# 1. 克隆项目
+git clone https://github.com/xtgm/linux-do-max.git
+cd linux-do-max
+
+# 2. 安装依赖
+pip install -r requirements.txt
+
+# 3. 运行首次登录（会打开浏览器）
+python main.py --first-login
+
+# 4. 在浏览器中完成登录，等待提示"登录状态已保存"
+
+# ========== 将登录数据复制到 ARM 设备 ==========
+
+# 5. 打包登录数据
+# Windows (PowerShell):
+Compress-Archive -Path "$env:USERPROFILE\.linuxdo-browser" -DestinationPath linuxdo-browser.zip
+
+# macOS/Linux:
+tar -czvf linuxdo-browser.tar.gz -C ~ .linuxdo-browser
+
+# 6. 上传到 ARM 设备
+# Windows:
+scp linuxdo-browser.zip root@192.168.100.37:~/
+
+# macOS/Linux:
+scp linuxdo-browser.tar.gz root@192.168.100.37:~/
+
+# ========== 在 ARM 设备上操作 ==========
+
+# 7. SSH 登录 ARM 设备
+ssh root@192.168.100.37
+
+# 8. 解压登录数据
+# 如果是 zip:
+unzip linuxdo-browser.zip -d ~/
+
+# 如果是 tar.gz:
+tar -xzvf linuxdo-browser.tar.gz -C ~/
+
+# 9. 确认数据已就位
+ls -la ~/.linuxdo-browser/
+
+# 10. 修改配置为无头模式
+cd /path/to/linuxdo-checkin
+nano config.yaml
+# 设置: headless: true
+
+# 11. 测试签到（无头模式）
+xvfb-run -a python3 main.py
+
+# 12. 设置定时任务
+./scripts/setup_arm.sh
+# 选择 6. 设置定时任务
+```
+
+**方案四流程图：**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    有图形界面的电脑                              │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────────────┐  │
+│  │ 安装项目    │ -> │ 首次登录    │ -> │ ~/.linuxdo-browser/ │  │
+│  │             │    │ (浏览器)    │    │ (登录数据)          │  │
+│  └─────────────┘    └─────────────┘    └──────────┬──────────┘  │
+└──────────────────────────────────────────────────│──────────────┘
+                                                   │ scp/rsync
+                                                   ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    ARM 设备（无图形界面）                        │
+│  ┌─────────────────────┐    ┌─────────────┐    ┌─────────────┐  │
+│  │ ~/.linuxdo-browser/ │ -> │ headless:   │ -> │ 定时签到    │  │
+│  │ (复制过来的数据)     │    │ true        │    │ (xvfb-run)  │  │
+│  └─────────────────────┘    └─────────────┘    └─────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### 支持的 ARM 设备
+
+| 设备类型 | 芯片示例 | 支持状态 | 备注 |
+|----------|----------|----------|------|
+| 树莓派 4/5 | BCM2711/BCM2712 | ✅ 完全支持 | 推荐 2GB+ 内存 |
+| 树莓派 3B+ | BCM2837 | ⚠️ 建议 ARM64 | 1GB 内存较紧张 |
+| Orange Pi | Allwinner H6/H616 | ✅ 完全支持 | |
+| 电视盒子 | Amlogic S905X3/S922X | ✅ 完全支持 | 需用方案四 |
+| 玩客云 | Amlogic S805 | ⚠️ ARM32 | 内存可能不足 |
+| Apple Silicon Mac | M1/M2/M3 | ✅ 完全支持 | 有图形界面 |
+| ARM 云服务器 | Ampere/Graviton | ✅ 完全支持 | 需用方案四 |
+
 #### 注意事项
 
 1. **推荐 ARM64** - ARM32（armv7）支持有限，建议使用 64 位系统
 2. **内存要求** - 至少 1GB，推荐 2GB+（Chromium 较占内存）
-3. **首次登录** - 需要图形界面（VNC 或本地桌面）
+3. **首次登录** - 需要图形界面，无图形界面请使用上述方案四
 4. **散热** - 树莓派运行 Chromium 会发热，建议加装散热片/风扇
 5. **SD 卡** - 建议使用高速 SD 卡（Class 10 / A1 / A2）
+6. **电视盒子** - 通常无图形界面，推荐使用方案四
 
 ---
 
