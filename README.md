@@ -1254,18 +1254,24 @@ ARM 设备（如电视盒子、无桌面服务器）通常没有图形界面，�
 # Debian/Ubuntu/Armbian
 sudo apt install tigervnc-standalone-server
 
-# 2. 启动 VNC 服务（首次需要设置密码）
+# 2. 安装中文字体（重要！否则中文显示为方块）
+sudo apt install fonts-wqy-zenhei fonts-wqy-microhei
+fc-cache -fv  # 刷新字体缓存
+
+# 3. 启动 VNC 服务（首次需要设置密码）
 vncserver :1
 
-# 3. 用 VNC 客户端连接
+# 4. 用 VNC 客户端连接
 # 地址: ARM设备IP:5901
 # 推荐客户端: RealVNC Viewer, TigerVNC
 
-# 4. 在 VNC 桌面中运行首次登录
+# 5. 在 VNC 桌面中运行首次登录
 export DISPLAY=:1
 ./scripts/setup_arm.sh
 # 选择 7. 首次登录
 ```
+
+> **注意**：如果 VNC 中文显示为方块（□□□），说明缺少中文字体，请执行步骤 2 安装字体后重启 VNC。
 
 **方案二：SSH X11 转发**
 
@@ -1588,7 +1594,21 @@ tg_chat_id: ""
 2. **依赖未安装** - 在依赖管理中添加 DrissionPage、PyYAML、requests
 3. **命令格式错误** - 确保使用 `xvfb-run -a python3 /path/to/ql_main.py`
 
-### Q7: macOS 任务没有执行？
+### Q7: VNC 中文显示为方块？
+
+**A:** 缺少中文字体，在 ARM 设备上安装：
+
+```bash
+# Debian/Ubuntu/Armbian
+sudo apt install fonts-wqy-zenhei fonts-wqy-microhei
+fc-cache -fv  # 刷新字体缓存
+
+# 重启 VNC 服务
+vncserver -kill :1
+vncserver :1
+```
+
+### Q9: macOS 任务没有执行？
 
 **A:** 检查以下几点：
 
@@ -1596,7 +1616,7 @@ tg_chat_id: ""
 2. 任务是否加载 - 运行 `launchctl list | grep linuxdo`
 3. 查看错误日志 - `cat logs/main.error.log`
 
-### Q8: 如何修改浏览帖子数量？
+### Q10: 如何修改浏览帖子数量？
 
 **A:** 编辑 `config.yaml`：
 
@@ -1610,7 +1630,7 @@ browse_count: 20  # 改为 20 篇
 export BROWSE_COUNT=20
 ```
 
-### Q9: 如何关闭点赞功能？
+### Q11: 如何关闭点赞功能？
 
 **A:** 将点赞概率设为 0：
 
@@ -1618,7 +1638,7 @@ export BROWSE_COUNT=20
 like_probability: 0  # 不点赞
 ```
 
-### Q10: 支持多账号吗？
+### Q12: 支持多账号吗？
 
 **A:** 目前不支持。如需多账号，可以：
 
@@ -1626,7 +1646,7 @@ like_probability: 0  # 不点赞
 2. 每个目录配置不同的 `user_data_dir`
 3. 分别运行首次登录和定时任务
 
-### Q11: 树莓派/ARM 设备支持吗？
+### Q13: 树莓派/ARM 设备支持吗？
 
 **A:** 支持。使用方案F（ARM 设备部署）：
 
@@ -1639,7 +1659,7 @@ like_probability: 0  # 不点赞
 - 至少 1GB 内存，推荐 2GB+
 - 树莓派建议加装散热片
 
-### Q12: ARM 设备上 Chromium 启动失败？
+### Q14: ARM 设备上 Chromium 启动失败？
 
 **A:** 常见原因和解决方法：
 

@@ -582,12 +582,23 @@ class DependencyInstaller:
                 print_error(f"命令执行失败: {e}")
             return False
 
-    def setup_python_env(self):
+    def setup_python_env(self, project_dir: str = None):
         """配置 Python 环境"""
         print_step("配置 Python 环境...")
 
-        # venv 应该在项目根目录（当前工作目录），不是脚本目录
-        project_dir = os.getcwd()
+        # venv 应该在项目根目录，不是脚本目录
+        if project_dir is None:
+            project_dir = os.getcwd()
+
+        # 确保在项目根目录（有 main.py 的目录）
+        if not os.path.exists(os.path.join(project_dir, "main.py")):
+            # 尝试找到项目根目录
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            parent_dir = os.path.dirname(script_dir)
+            if os.path.exists(os.path.join(parent_dir, "main.py")):
+                project_dir = parent_dir
+                print_info(f"项目目录: {project_dir}")
+
         venv_dir = os.path.join(project_dir, "venv")
 
         # 创建虚拟环境
@@ -1049,31 +1060,60 @@ class Installer:
 
     def _run_main_script(self, *args):
         """运行主脚本"""
+        project_dir = self._get_project_dir()
         venv_python = self._get_venv_python()
-        if venv_python and os.path.exists(venv_python):
-            cmd = [venv_python, "main.py"] + list(args)
-        else:
-            cmd = [sys.executable, "main.py"] + list(args)
+        main_script = os.path.join(project_dir, "main.py")
 
-        subprocess.run(cmd)
+        if not os.path.exists(main_script):
+            print_error(f"找不到 main.py: {main_script}")
+            return
+
+        if venv_python and os.path.exists(venv_python):
+            cmd = [venv_python, main_script] + list(args)
+        else:
+            cmd = [sys.executable, main_script] + list(args)
+
+        subprocess.run(cmd, cwd=project_dir)
 
     def _run_with_xvfb(self):
         """使用 xvfb-run 运行"""
+        project_dir = self._get_project_dir()
         venv_python = self._get_venv_python()
+        main_script = os.path.join(project_dir, "main.py")
+
+        if not os.path.exists(main_script):
+            print_error(f"找不到 main.py: {main_script}")
+            return
+
         if venv_python and os.path.exists(venv_python):
             python_cmd = venv_python
         else:
             python_cmd = sys.executable
 
         if shutil.which("xvfb-run"):
-            subprocess.run(["xvfb-run", "-a", python_cmd, "main.py"])
+            subprocess.run(["xvfb-run", "-a", python_cmd, main_script], cwd=project_dir)
         else:
             print_warning("未安装 xvfb-run，尝试直接运行...")
-            subprocess.run([python_cmd, "main.py"])
+            subprocess.run([python_cmd, main_script], cwd=project_dir)
+
+    def _get_project_dir(self) -> str:
+        """获取项目根目录（包含 main.py 的目录）"""
+        # 优先使用当前目录
+        if os.path.exists(os.path.join(os.getcwd(), "main.py")):
+            return os.getcwd()
+
+        # 尝试脚本目录的上一级
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        parent_dir = os.path.dirname(script_dir)
+        if os.path.exists(os.path.join(parent_dir, "main.py")):
+            return parent_dir
+
+        # 返回当前目录
+        return os.getcwd()
 
     def _get_venv_python(self) -> str:
         """获取虚拟环境 Python 路径"""
-        project_dir = os.getcwd()
+        project_dir = self._get_project_dir()
         if self.sys_info.os_type == "windows":
             return os.path.join(project_dir, "venv", "Scripts", "python.exe")
         else:
