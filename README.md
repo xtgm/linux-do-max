@@ -167,48 +167,91 @@
 
 ## 一键安装
 
-**推荐使用一键安装脚本**，自动检测系统平台、安装依赖、配置环境、设置定时任务。
+**推荐使用一键安装脚本 `setup.py`**，自动检测系统平台、安装依赖、配置环境、设置定时任务。
 
-### Linux / macOS / ARM
+### 所有平台通用
 
 ```bash
 # 1. 克隆项目
 git clone https://github.com/xtgm/linux-do-max.git
 cd linux-do-max
 
-# 2. 运行一键安装脚本
-chmod +x install.sh
-./install.sh
+# 2. 运行一键安装脚本（Python 3.8+）
+python setup.py
 ```
 
+> **注意**: 需要先安装 Python 3.8+，脚本会自动安装其他依赖。
+
+### 脚本功能
+
 脚本会自动：
-- 检测操作系统和架构（x64/ARM64/ARM32）
+- 检测操作系统（Windows/Linux/macOS）
+- 检测架构（x64/ARM64/ARM32）
 - 检测 Linux 发行版（Debian/Ubuntu/CentOS/Fedora/Arch/Alpine）
+- 检测包管理器（apt/dnf/yum/pacman/apk/brew）
 - 检测是否为树莓派/电视盒子等 ARM 设备
 - 检测是否有图形界面
-- 安装系统依赖（Python、Chromium、Xvfb、中文字体）
+- 安装系统依赖（Chromium、Xvfb、中文字体）
 - 创建 Python 虚拟环境并安装依赖
 - 交互式配置（用户名、密码、Telegram、浏览设置）
-- 设置定时任务（cron / launchd）
+- 设置定时任务（cron/launchd/Windows任务计划）
 - 引导首次登录
 
-### Windows
+### 主菜单
 
-```powershell
-# 1. 克隆项目
-git clone https://github.com/xtgm/linux-do-max.git
-cd linux-do-max
-
-# 2. 运行一键安装脚本（PowerShell）
-.\install.ps1
+```
+┌─────────────────────────────────────────┐
+│              主菜单                     │
+├─────────────────────────────────────────┤
+│  1. 一键安装（推荐）                    │
+│  2. 仅安装依赖                          │
+│  3. 仅配置 Python 环境                  │
+│  4. 编辑配置文件                        │
+│  5. 设置定时任务                        │
+│  6. 首次登录                            │
+│  7. 运行签到                            │
+│  8. 查看系统信息                        │
+│  0. 退出                                │
+└─────────────────────────────────────────┘
 ```
 
-脚本会自动：
-- 检测 Python 和 Chrome 是否已安装
-- 创建 Python 虚拟环境并安装依赖
-- 交互式配置
-- 设置 Windows 任务计划
-- 引导首次登录
+### 配置编辑
+
+选择菜单 `4. 编辑配置文件` 可以交互式修改配置：
+
+```
+当前配置:
+  1. 用户名: your_username
+  2. 密码: ********
+  3. 用户数据目录: ~/.linuxdo-browser
+  4. 无头模式: false
+  5. 浏览器路径: /usr/bin/chromium
+  6. 浏览帖子数: 10
+  7. 点赞概率: 0.3
+  8. Telegram Token: 123456:ABC...
+  9. Telegram Chat ID: 123456789
+
+  0. 保存并返回
+  q. 不保存返回
+```
+
+修改后会自动同步到 `config.yaml` 配置文件。
+
+### 环境变量优先级
+
+环境变量优先级高于配置文件，适用于 Docker 和青龙面板：
+
+| 环境变量 | 配置项 |
+|----------|--------|
+| LINUXDO_USERNAME | username |
+| LINUXDO_PASSWORD | password |
+| USER_DATA_DIR | user_data_dir |
+| HEADLESS | headless |
+| BROWSER_PATH | browser_path |
+| BROWSE_COUNT | browse_count |
+| LIKE_PROBABILITY | like_probability |
+| TG_BOT_TOKEN | tg_bot_token |
+| TG_CHAT_ID | tg_chat_id |
 
 ### 一键安装流程
 
@@ -226,7 +269,6 @@ cd linux-do-max
 │     └── 是否有图形界面                                       │
 │                                                             │
 │  2. 安装依赖                                                │
-│     ├── Python 3.8+                                         │
 │     ├── Chromium / Chrome                                   │
 │     ├── Xvfb (Linux 无头模式)                               │
 │     └── 中文字体                                            │
@@ -238,9 +280,8 @@ cd linux-do-max
 │                                                             │
 │  4. 交互式配置                                              │
 │     ├── Linux.do 用户名/密码（可选）                        │
-│     ├── 浏览帖子数量                                        │
-│     ├── 点赞概率                                            │
-│     ├── 无头模式                                            │
+│     ├── 浏览帖子数量、点赞概率                              │
+│     ├── 无头模式、浏览器路径                                │
 │     ├── Telegram 通知配置                                   │
 │     └── 生成 config.yaml                                    │
 │                                                             │
@@ -253,35 +294,8 @@ cd linux-do-max
 │     ├── 有图形界面: 直接运行                                │
 │     └── 无图形界面: 提示 VNC/X11/方案四                     │
 │                                                             │
-│  7. 测试运行                                                │
-│                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
-
-### 安装脚本参数
-
-**Linux/macOS (install.sh):**
-```bash
-# 直接运行（交互式）
-./install.sh
-
-# 查看帮助
-./install.sh --help
-```
-
-**Windows (install.ps1):**
-```powershell
-# 直接运行（交互式）
-.\install.ps1
-
-# 跳过配置
-.\install.ps1 -SkipConfig
-
-# 跳过定时任务
-.\install.ps1 -SkipCron
-
-# 查看帮助
-.\install.ps1 -Help
 ```
 
 ---
