@@ -153,20 +153,60 @@ class Browser:
         if not self.page:
             return False
         try:
+            # 检测弹出对话框
             dialog = self.page.ele("css:.dialog-body", timeout=1)
             if dialog and "403" in dialog.text.lower():
                 print("[浏览器] 检测到 CF 403 错误")
+                return True
+            # 检测页面级 403
+            page_text = self.page.html.lower() if self.page.html else ""
+            if "403 forbidden" in page_text or "<h1>403</h1>" in page_text:
+                print("[浏览器] 检测到 CF 403 页面")
+                return True
+        except:
+            pass
+        return False
+
+    def close_403_dialog(self) -> bool:
+        """关闭 403 错误对话框"""
+        try:
+            # 查找并点击"确定"按钮
+            ok_btn = self.page.ele("css:.dialog-footer .btn-primary", timeout=2)
+            if ok_btn:
+                ok_btn.click()
+                print("[浏览器] 已关闭 403 对话框")
+                time.sleep(1)
+                return True
+            # 备选：查找任何对话框的确定按钮
+            ok_btn = self.page.ele("css:button.btn-primary", timeout=1)
+            if ok_btn and ("确定" in ok_btn.text or "OK" in ok_btn.text.upper()):
+                ok_btn.click()
+                print("[浏览器] 已关闭对话框")
+                time.sleep(1)
                 return True
         except:
             pass
         return False
 
     def handle_cf_403(self, current_url: str) -> bool:
-        """处理 CF 403 错误，跳转到 challenge 页面"""
+        """处理 CF 403 错误，等待验证完成"""
         try:
+            # 1. 先关闭 403 对话框
+            self.close_403_dialog()
+
+            # 2. 跳转到 challenge 页面
             challenge_url = f"https://linux.do/challenge?redirect={current_url}"
-            self.goto(challenge_url)
-            return self.wait_for_cf()
+            print(f"[浏览器] 跳转到验证页面...")
+            self.goto(challenge_url, wait=3)
+
+            # 3. 等待 CF 验证完成（增加超时时间）
+            if not self.wait_for_cf(timeout=180):
+                print("[浏览器] CF 验证超时，等待用户手动处理...")
+                # 额外等待用户手动处理
+                time.sleep(30)
+                return self.wait_for_cf(timeout=60)
+
+            return True
         except Exception as e:
             print(f"[浏览器] 处理 CF 403 失败: {e}")
             return False

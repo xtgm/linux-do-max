@@ -242,10 +242,17 @@ class Checkin:
             if not self.browser.goto(post_url, wait=2):
                 continue
 
-            # 检查 CF 403
+            # 检查 CF 403（403 是 CF 5秒盾触发的前提）
             if self.browser.check_cf_403():
-                self.browser.handle_cf_403(post_url)
-                continue
+                print("[签到] 检测到 403，停止任务等待 CF 验证...")
+                # 停止所有任务，等待 CF 验证成功
+                if not self._wait_cf_verification(post_url):
+                    print("[签到] CF 验证失败，终止签到")
+                    return  # 终止整个签到流程
+                # 验证成功后重新访问当前帖子
+                print(f"[签到] CF 验证通过，重新访问帖子: {post_url}")
+                if not self.browser.goto(post_url, wait=3):
+                    continue
 
             # 检查限流
             if self.browser.check_rate_limit():
@@ -275,14 +282,13 @@ class Checkin:
         print(f"[签到] 浏览完成，共浏览 {self.stats['browse_count']} 篇")
 
     def _get_posts_from_multiple_pages(self) -> List[str]:
-        """从多个页面获取帖子（热门 + 最新），随机混合"""
+        """从多个页面获取帖子（最新 + 新帖），随机混合"""
         all_posts = []
 
-        # 要访问的页面列表（热门优先）
+        # 要访问的页面列表（最新 + 新帖，避免重复点赞已浏览的热门帖）
         pages = [
-            (f"{self.SITE_URL}/top", "热门(Top)"),
-            (f"{self.SITE_URL}/hot", "热门(Hot)"),
             (f"{self.SITE_URL}/latest", "最新(Latest)"),
+            (f"{self.SITE_URL}/new", "新帖(New)"),
         ]
 
         for url, name in pages:
@@ -377,6 +383,30 @@ class Checkin:
         except:
             return 0
 
+    def _wait_cf_verification(self, current_url: str) -> bool:
+        """等待 CF 验证完成（403 是 CF 5秒盾触发的前提）"""
+        try:
+            # 1. 先关闭 403 对话框
+            self.browser.close_403_dialog()
+
+            # 2. 跳转到 challenge 页面
+            challenge_url = f"https://linux.do/challenge?redirect={current_url}"
+            print(f"[签到] 跳转到验证页面...")
+            self.browser.goto(challenge_url, wait=3)
+
+            # 3. 等待 CF 验证完成（最多等待 5 分钟）
+            print("[签到] 等待 CF 验证，最多 5 分钟...")
+            if not self.browser.wait_for_cf(timeout=300):
+                print("[签到] CF 验证超时，等待用户手动处理...")
+                # 额外等待用户手动处理
+                time.sleep(60)
+                return self.browser.wait_for_cf(timeout=120)
+
+            return True
+        except Exception as e:
+            print(f"[签到] CF 验证异常: {e}")
+            return False
+
     def _like_post(self) -> bool:
         """点赞帖子"""
         try:
@@ -391,9 +421,20 @@ class Checkin:
                 try:
                     like_btn = self.browser.page.ele(selector, timeout=1)
                     if like_btn:
+                        # 方案A：检查是否已点赞（避免重复点赞触发"不能修改"提示）
+                        btn_class = like_btn.attr("class") or ""
+                        if "has-like" in btn_class or "my-likes" in btn_class or "liked" in btn_class:
+                            print("[签到] 已点赞，跳过")
+                            return False
+
                         like_btn.click()
+
+                        # 方案B：检测并关闭"不能再被修改或移除"对话框
+                        time.sleep(0.5)
+                        self._close_like_error_dialog()
+
                         print("[签到] 点赞成功")
-                        time.sleep(1)
+                        time.sleep(0.5)
                         return True
                 except:
                     continue
@@ -401,6 +442,19 @@ class Checkin:
         except Exception as e:
             print(f"[签到] 点赞失败: {e}")
         return False
+
+    def _close_like_error_dialog(self):
+        """关闭点赞错误对话框（如"不能再被修改或移除"）"""
+        try:
+            dialog = self.browser.page.ele("css:.dialog-body", timeout=1)
+            if dialog and ("不能再被修改" in dialog.text or "无法" in dialog.text):
+                ok_btn = self.browser.page.ele("css:.dialog-footer .btn-primary", timeout=1)
+                if ok_btn:
+                    ok_btn.click()
+                    print("[签到] 已关闭点赞提示对话框")
+                    time.sleep(0.5)
+        except:
+            pass
 
     def _get_progress(self):
         """获取升级进度（已在 _get_user_info 中获取）"""
