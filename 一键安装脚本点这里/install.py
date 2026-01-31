@@ -246,34 +246,41 @@ class SystemInfo:
 
     def print_info(self):
         """打印系统信息"""
-        def pad_cn(text: str, width: int) -> str:
-            """中文字符串填充（考虑中文占2个字符宽度）"""
-            cn_count = sum(1 for c in text if '\u4e00' <= c <= '\u9fff')
-            return text + ' ' * (width - len(text) - cn_count)
+        def display_width(text: str) -> int:
+            """计算字符串的显示宽度（中文占2，英文占1）"""
+            width = 0
+            for c in text:
+                if '\u4e00' <= c <= '\u9fff' or '\u3000' <= c <= '\u303f' or '\uff00' <= c <= '\uffef':
+                    width += 2
+                else:
+                    width += 1
+            return width
 
-        def pad_val(text: str, width: int) -> str:
-            """值字符串填充"""
-            text = str(text)[:width]
-            cn_count = sum(1 for c in text if '\u4e00' <= c <= '\u9fff')
-            return text + ' ' * (width - len(text) - cn_count)
+        def pad_right(text: str, width: int) -> str:
+            """右填充到指定显示宽度"""
+            text = str(text)
+            current_width = display_width(text)
+            if current_width >= width:
+                return text[:width]
+            return text + ' ' * (width - current_width)
 
         print()
-        print("┌──────────────────────────────────────────┐")
-        print("│            系统环境检测结果              │")
-        print("├──────────────────────────────────────────┤")
-        print(f"│ {pad_cn('操作系统', 12)} │ {pad_val(self.os_name, 22)} │")
-        print(f"│ {pad_cn('版本', 12)} │ {pad_val(self.os_version, 22)} │")
+        print("┌────────────────────────────────────────┐")
+        print("│          系统环境检测结果              │")
+        print("├────────────────────────────────────────┤")
+        print(f"│ {pad_right('操作系统', 10)}│ {pad_right(self.os_name, 24)}│")
+        print(f"│ {pad_right('版本', 10)}│ {pad_right(self.os_version[:24], 24)}│")
         arch_str = f"{self.arch_raw} ({self.arch})"
-        print(f"│ {pad_cn('架构', 12)} │ {pad_val(arch_str, 22)} │")
+        print(f"│ {pad_right('架构', 10)}│ {pad_right(arch_str, 24)}│")
         if self.os_type == "linux":
-            print(f"│ {pad_cn('发行版', 12)} │ {pad_val(self.distro, 22)} │")
-            print(f"│ {pad_cn('包管理器', 12)} │ {pad_val(self.pkg_manager, 22)} │")
-        print(f"│ {pad_cn('ARM设备', 12)} │ {pad_val('是' if self.is_arm else '否', 22)} │")
-        print(f"│ {pad_cn('树莓派', 12)} │ {pad_val('是' if self.is_raspberry_pi else '否', 22)} │")
-        print(f"│ {pad_cn('Docker容器', 12)} │ {pad_val('是' if self.is_docker else '否', 22)} │")
-        print(f"│ {pad_cn('图形界面', 12)} │ {pad_val('有' if self.has_display else '无', 22)} │")
-        print(f"│ {pad_cn('浏览器', 12)} │ {pad_val('已安装' if self.browser_path else '未安装', 22)} │")
-        print("└──────────────────────────────────────────┘")
+            print(f"│ {pad_right('发行版', 10)}│ {pad_right(self.distro, 24)}│")
+            print(f"│ {pad_right('包管理器', 10)}│ {pad_right(self.pkg_manager, 24)}│")
+        print(f"│ {pad_right('ARM设备', 10)}│ {pad_right('是' if self.is_arm else '否', 24)}│")
+        print(f"│ {pad_right('树莓派', 10)}│ {pad_right('是' if self.is_raspberry_pi else '否', 24)}│")
+        print(f"│ {pad_right('Docker容器', 10)}│ {pad_right('是' if self.is_docker else '否', 24)}│")
+        print(f"│ {pad_right('图形界面', 10)}│ {pad_right('有' if self.has_display else '无', 24)}│")
+        print(f"│ {pad_right('浏览器', 10)}│ {pad_right('已安装' if self.browser_path else '未安装', 24)}│")
+        print("└────────────────────────────────────────┘")
         print()
 
 
@@ -844,19 +851,19 @@ class Installer:
         """主菜单"""
         while True:
             print()
-            print("┌──────────────────────────────────────────┐")
-            print("│                主菜单                    │")
-            print("├──────────────────────────────────────────┤")
-            print("│  1. 一键安装（推荐）                     │")
-            print("│  2. 仅安装依赖                           │")
-            print("│  3. 仅配置 Python 环境                   │")
-            print("│  4. 编辑配置文件                         │")
-            print("│  5. 设置定时任务                         │")
-            print("│  6. 首次登录                             │")
-            print("│  7. 运行签到                             │")
-            print("│  8. 查看系统信息                         │")
-            print("│  0. 退出                                 │")
-            print("└──────────────────────────────────────────┘")
+            print("┌────────────────────────────────────────┐")
+            print("│                主菜单                  │")
+            print("├────────────────────────────────────────┤")
+            print("│  1. 一键安装（推荐）                   │")
+            print("│  2. 仅安装依赖                         │")
+            print("│  3. 仅配置 Python 环境                 │")
+            print("│  4. 编辑配置文件                       │")
+            print("│  5. 设置定时任务                       │")
+            print("│  6. 首次登录                           │")
+            print("│  7. 运行签到                           │")
+            print("│  8. 查看系统信息                       │")
+            print("│  0. 退出                               │")
+            print("└────────────────────────────────────────┘")
             print()
 
             choice = input("请选择 [0-8]: ").strip()
