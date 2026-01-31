@@ -175,37 +175,183 @@
 | `linuxANDmacos.sh` | Linux/macOS | Bash 脚本，自动安装依赖 |
 | `install.py` | 全平台 | Python 脚本，功能最完整 |
 
-### Windows
+---
+
+### Windows 系统
+
+#### 方式一：使用 Windows.cmd（推荐，无需 Python）
 
 ```cmd
-:: 双击 Windows.cmd 或命令行运行
-cd 一键安装脚本点这里
+:: 方法1：直接双击运行
+双击 一键安装脚本点这里\Windows.cmd
+
+:: 方法2：命令行运行
+cd E:\linuxdo-checkin\一键安装脚本点这里
 Windows.cmd
 ```
 
-### Linux / macOS
+#### 方式二：使用 install.py（需要 Python 3.8+）
 
-```bash
-cd 一键安装脚本点这里
-chmod +x linuxANDmacos.sh
-./linuxANDmacos.sh
-```
+```cmd
+:: 方法1：双击运行（需要 Python 已关联 .py 文件）
+双击 一键安装脚本点这里\install.py
 
-### Python 版本（全平台通用，功能最完整）
-
-需要先安装 Python 3.8+
-
-```bash
-# 方式一：在脚本目录运行
-cd 一键安装脚本点这里
+:: 方法2：在脚本目录运行
+cd E:\linuxdo-checkin\一键安装脚本点这里
 python install.py
 
-# 方式二：在项目根目录运行
+:: 方法3：在项目根目录运行
 cd E:\linuxdo-checkin
 python 一键安装脚本点这里\install.py
 
-# 方式三：直接双击 install.py（需要 Python 已关联 .py 文件）
+:: 方法4：使用完整路径运行（任意目录）
+python E:\linuxdo-checkin\一键安装脚本点这里\install.py
 ```
+
+---
+
+### Linux 系统（Ubuntu/Debian/CentOS/Fedora/Arch 等）
+
+#### 方式一：使用 linuxANDmacos.sh（推荐）
+
+```bash
+# 进入项目目录
+cd ~/linux-do-max
+
+# 赋予执行权限
+chmod +x 一键安装脚本点这里/linuxANDmacos.sh
+
+# 运行脚本
+./一键安装脚本点这里/linuxANDmacos.sh
+```
+
+#### 方式二：使用 install.py（需要 Python 3.8+）
+
+```bash
+# 检查 Python 版本
+python3 --version
+
+# 如果没有 Python3，先安装：
+# Ubuntu/Debian:
+sudo apt update && sudo apt install -y python3
+
+# CentOS/RHEL:
+sudo yum install -y python3
+
+# Fedora:
+sudo dnf install -y python3
+
+# Arch:
+sudo pacman -S python
+
+# Alpine:
+sudo apk add python3
+```
+
+```bash
+# 方法1：在脚本目录运行
+cd ~/linux-do-max/一键安装脚本点这里
+python3 install.py
+
+# 方法2：在项目根目录运行
+cd ~/linux-do-max
+python3 一键安装脚本点这里/install.py
+
+# 方法3：使用完整路径运行（任意目录）
+python3 ~/linux-do-max/一键安装脚本点这里/install.py
+
+# 方法4：赋予执行权限后直接运行
+chmod +x ~/linux-do-max/一键安装脚本点这里/install.py
+~/linux-do-max/一键安装脚本点这里/install.py
+```
+
+> **注意**：Linux 系统使用 `python3` 命令，不是 `python`
+
+---
+
+### macOS 系统
+
+#### 方式一：使用 linuxANDmacos.sh（推荐）
+
+```bash
+# 进入项目目录
+cd ~/linux-do-max
+
+# 赋予执行权限
+chmod +x 一键安装脚本点这里/linuxANDmacos.sh
+
+# 运行脚本
+./一键安装脚本点这里/linuxANDmacos.sh
+```
+
+#### 方式二：使用 install.py（需要 Python 3.8+）
+
+```bash
+# 检查 Python 版本
+python3 --version
+
+# 如果没有 Python3，使用 Homebrew 安装：
+brew install python3
+```
+
+```bash
+# 方法1：在脚本目录运行
+cd ~/linux-do-max/一键安装脚本点这里
+python3 install.py
+
+# 方法2：在项目根目录运行
+cd ~/linux-do-max
+python3 一键安装脚本点这里/install.py
+
+# 方法3：使用完整路径运行（任意目录）
+python3 ~/linux-do-max/一键安装脚本点这里/install.py
+```
+
+---
+
+### ARM 设备（树莓派/电视盒子/ARM 服务器）
+
+```bash
+# 检查 Python 版本
+python3 --version
+
+# 树莓派/Debian 系统安装 Python：
+sudo apt update && sudo apt install -y python3
+
+# 运行安装脚本
+cd ~/linux-do-max/一键安装脚本点这里
+python3 install.py
+```
+
+> **提示**：ARM 设备如果没有图形界面，请参考 [ARM 无图形界面解决方案](#arm-无图形界面解决方案)
+
+---
+
+### 常见问题
+
+#### Q: `python: command not found`
+**A**: Linux/macOS 系统使用 `python3` 命令：
+```bash
+python3 install.py
+```
+
+#### Q: `[错误] 请在项目目录下运行此脚本`
+**A**: 脚本会自动切换目录，如果仍报错，请手动切换：
+```bash
+cd /path/to/linux-do-max
+python3 一键安装脚本点这里/install.py
+```
+
+#### Q: `Permission denied`
+**A**: 赋予执行权限：
+```bash
+chmod +x install.py
+```
+
+#### Q: Windows 中文乱码
+**A**: 使用 `Windows.cmd` 脚本，或确保终端使用 UTF-8 编码
+
+---
 
 ### 脚本功能
 
