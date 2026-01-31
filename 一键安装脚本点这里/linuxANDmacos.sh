@@ -72,6 +72,7 @@ detect_system() {
     elif command -v yum &>/dev/null; then PKG_MGR="yum"
     elif command -v pacman &>/dev/null; then PKG_MGR="pacman"
     elif command -v apk &>/dev/null; then PKG_MGR="apk"
+    elif command -v zypper &>/dev/null; then PKG_MGR="zypper"
     elif command -v brew &>/dev/null; then PKG_MGR="brew"
     fi
 
@@ -125,8 +126,13 @@ install_deps() {
             sudo pacman -Syu --noconfirm chromium xorg-server-xvfb wqy-zenhei || true
             ;;
         apk)
-            sudo apk add python3 py3-pip py3-virtualenv || true
+            # Alpine: python3-dev 包含 venv 模块
+            sudo apk add python3 py3-pip python3-dev || true
             sudo apk add chromium chromium-chromedriver xvfb font-wqy-zenhei ttf-wqy-zenhei || true
+            ;;
+        zypper)
+            sudo zypper install -y python3 python3-pip python3-virtualenv python3-devel || true
+            sudo zypper install -y chromium xvfb-run google-noto-sans-cjk-fonts || true
             ;;
         brew)
             brew install python3 || true

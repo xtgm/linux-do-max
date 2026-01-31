@@ -517,8 +517,14 @@ class DependencyInstaller:
 
         elif pkg_manager == "apk":
             print_info("使用 apk 安装依赖...")
-            self._run_cmd("sudo apk add python3 py3-pip py3-virtualenv", ignore_error=True)
+            # Alpine: python3-dev 包含 venv 模块
+            self._run_cmd("sudo apk add python3 py3-pip python3-dev", ignore_error=True)
             self._run_cmd("sudo apk add chromium chromium-chromedriver xvfb font-wqy-zenhei ttf-wqy-zenhei", ignore_error=True)
+
+        elif pkg_manager == "zypper":
+            print_info("使用 zypper 安装依赖...")
+            self._run_cmd("sudo zypper install -y python3 python3-pip python3-virtualenv python3-devel", ignore_error=True)
+            self._run_cmd("sudo zypper install -y chromium xvfb-run google-noto-sans-cjk-fonts", ignore_error=True)
 
         else:
             print_warning(f"未知包管理器: {pkg_manager}")
@@ -561,12 +567,19 @@ class DependencyInstaller:
         """配置 Python 环境"""
         print_step("配置 Python 环境...")
 
-        venv_dir = os.path.join(self.sys_info.script_dir, "venv")
+        # venv 应该在项目根目录（当前工作目录），不是脚本目录
+        project_dir = os.getcwd()
+        venv_dir = os.path.join(project_dir, "venv")
 
         # 创建虚拟环境
         if not os.path.exists(venv_dir):
             print_info("创建虚拟环境...")
-            subprocess.run([sys.executable, "-m", "venv", "venv"], cwd=self.sys_info.script_dir)
+            result = subprocess.run([sys.executable, "-m", "venv", "venv"], cwd=project_dir)
+            if result.returncode != 0:
+                print_error("创建虚拟环境失败，尝试使用 virtualenv...")
+                # 尝试使用 virtualenv
+                subprocess.run([sys.executable, "-m", "pip", "install", "virtualenv"], capture_output=True)
+                subprocess.run([sys.executable, "-m", "virtualenv", "venv"], cwd=project_dir)
 
         # 获取 pip 路径
         if self.sys_info.os_type == "windows":
@@ -576,17 +589,24 @@ class DependencyInstaller:
             pip_path = os.path.join(venv_dir, "bin", "pip")
             python_path = os.path.join(venv_dir, "bin", "python")
 
+        # 检查 venv 是否创建成功
+        if not os.path.exists(python_path):
+            print_error(f"虚拟环境创建失败: {python_path} 不存在")
+            print_info("请手动安装 python3-venv: sudo apt install python3-venv")
+            return None
+
         # 升级 pip
         print_info("升级 pip...")
         subprocess.run([python_path, "-m", "pip", "install", "--upgrade", "pip"], capture_output=True)
 
         # 安装依赖
         print_info("安装 Python 依赖...")
-        requirements_path = os.path.join(self.sys_info.script_dir, "requirements.txt")
+        requirements_path = os.path.join(project_dir, "requirements.txt")
         if os.path.exists(requirements_path):
             subprocess.run([pip_path, "install", "-r", requirements_path])
         else:
             # 直接安装核心依赖
+            print_info("未找到 requirements.txt，安装核心依赖...")
             subprocess.run([pip_path, "install", "DrissionPage>=4.0.0", "PyYAML>=6.0", "requests>=2.28.0"])
 
         print_success("Python 环境配置完成")
@@ -620,9 +640,9 @@ class CronManager:
 
     def _setup_windows_task(self):
         """设置 Windows 任务计划"""
-        script_dir = self.sys_info.script_dir
-        python_path = os.path.join(script_dir, "venv", "Scripts", "python.exe")
-        main_script = os.path.join(script_dir, "main.py")
+        project_dir = os.getcwd()
+        python_path = os.path.join(project_dir, "venv", "Scripts", "python.exe")
+        main_script = os.path.join(project_dir, "main.py")
 
         # 选择时间
         print()
@@ -658,9 +678,9 @@ class CronManager:
 
     def _setup_launchd(self):
         """设置 macOS launchd"""
-        script_dir = self.sys_info.script_dir
-        python_path = os.path.join(script_dir, "venv", "bin", "python")
-        main_script = os.path.join(script_dir, "main.py")
+        project_dir = os.getcwd()
+        python_path = os.path.join(project_dir, "venv", "bin", "python")
+        main_script = os.path.join(project_dir, "main.py")
         plist_path = os.path.expanduser("~/Library/LaunchAgents/com.linuxdo.checkin.plist")
 
         plist_content = f"""<?xml version="1.0" encoding="UTF-8"?>
@@ -675,7 +695,7 @@ class CronManager:
         <string>{main_script}</string>
     </array>
     <key>WorkingDirectory</key>
-    <string>{script_dir}</string>
+    <string>{project_dir}</string>
     <key>StartCalendarInterval</key>
     <array>
         <dict>
@@ -692,14 +712,14 @@ class CronManager:
         </dict>
     </array>
     <key>StandardOutPath</key>
-    <string>{script_dir}/logs/checkin.log</string>
+    <string>{project_dir}/logs/checkin.log</string>
     <key>StandardErrorPath</key>
-    <string>{script_dir}/logs/checkin.log</string>
+    <string>{project_dir}/logs/checkin.log</string>
 </dict>
 </plist>
 """
         # 创建日志目录
-        os.makedirs(os.path.join(script_dir, "logs"), exist_ok=True)
+        os.makedirs(os.path.join(project_dir, "logs"), exist_ok=True)
 
         # 写入 plist
         with open(plist_path, "w") as f:
@@ -713,8 +733,8 @@ class CronManager:
 
     def _setup_cron(self):
         """设置 Linux cron"""
-        script_dir = self.sys_info.script_dir
-        python_path = os.path.join(script_dir, "venv", "bin", "python")
+        project_dir = os.getcwd()
+        python_path = os.path.join(project_dir, "venv", "bin", "python")
 
         # 选择时间
         print()
@@ -727,27 +747,27 @@ class CronManager:
         cron_entries = []
         if choice == "1":
             cron_entries = [
-                f"0 8 * * * cd {script_dir} && xvfb-run -a {python_path} main.py >> logs/checkin.log 2>&1",
-                f"0 20 * * * cd {script_dir} && xvfb-run -a {python_path} main.py >> logs/checkin.log 2>&1",
+                f"0 8 * * * cd {project_dir} && xvfb-run -a {python_path} main.py >> logs/checkin.log 2>&1",
+                f"0 20 * * * cd {project_dir} && xvfb-run -a {python_path} main.py >> logs/checkin.log 2>&1",
             ]
         elif choice == "2":
             cron_entries = [
-                f"0 9 * * * cd {script_dir} && xvfb-run -a {python_path} main.py >> logs/checkin.log 2>&1",
+                f"0 9 * * * cd {project_dir} && xvfb-run -a {python_path} main.py >> logs/checkin.log 2>&1",
             ]
         elif choice == "3":
             t1 = input("第一个时间 (cron 格式，如 0 8 * * *): ").strip()
-            cron_entries.append(f"{t1} cd {script_dir} && xvfb-run -a {python_path} main.py >> logs/checkin.log 2>&1")
+            cron_entries.append(f"{t1} cd {project_dir} && xvfb-run -a {python_path} main.py >> logs/checkin.log 2>&1")
             t2 = input("第二个时间 (直接回车跳过): ").strip()
             if t2:
-                cron_entries.append(f"{t2} cd {script_dir} && xvfb-run -a {python_path} main.py >> logs/checkin.log 2>&1")
+                cron_entries.append(f"{t2} cd {project_dir} && xvfb-run -a {python_path} main.py >> logs/checkin.log 2>&1")
         else:
             cron_entries = [
-                f"0 8 * * * cd {script_dir} && xvfb-run -a {python_path} main.py >> logs/checkin.log 2>&1",
-                f"0 20 * * * cd {script_dir} && xvfb-run -a {python_path} main.py >> logs/checkin.log 2>&1",
+                f"0 8 * * * cd {project_dir} && xvfb-run -a {python_path} main.py >> logs/checkin.log 2>&1",
+                f"0 20 * * * cd {project_dir} && xvfb-run -a {python_path} main.py >> logs/checkin.log 2>&1",
             ]
 
         # 创建日志目录
-        os.makedirs(os.path.join(script_dir, "logs"), exist_ok=True)
+        os.makedirs(os.path.join(project_dir, "logs"), exist_ok=True)
 
         # 获取现有 crontab
         try:
@@ -1016,7 +1036,7 @@ class Installer:
         else:
             cmd = [sys.executable, "main.py"] + list(args)
 
-        subprocess.run(cmd, cwd=self.sys_info.script_dir)
+        subprocess.run(cmd)
 
     def _run_with_xvfb(self):
         """使用 xvfb-run 运行"""
@@ -1027,17 +1047,18 @@ class Installer:
             python_cmd = sys.executable
 
         if shutil.which("xvfb-run"):
-            subprocess.run(["xvfb-run", "-a", python_cmd, "main.py"], cwd=self.sys_info.script_dir)
+            subprocess.run(["xvfb-run", "-a", python_cmd, "main.py"])
         else:
             print_warning("未安装 xvfb-run，尝试直接运行...")
-            subprocess.run([python_cmd, "main.py"], cwd=self.sys_info.script_dir)
+            subprocess.run([python_cmd, "main.py"])
 
     def _get_venv_python(self) -> str:
         """获取虚拟环境 Python 路径"""
+        project_dir = os.getcwd()
         if self.sys_info.os_type == "windows":
-            return os.path.join(self.sys_info.script_dir, "venv", "Scripts", "python.exe")
+            return os.path.join(project_dir, "venv", "Scripts", "python.exe")
         else:
-            return os.path.join(self.sys_info.script_dir, "venv", "bin", "python")
+            return os.path.join(project_dir, "venv", "bin", "python")
 
     def _print_completion(self):
         """打印完成信息"""
