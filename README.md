@@ -167,20 +167,31 @@
 
 ## 一键安装
 
-**推荐使用一键安装脚本 `setup.py`**，自动检测系统平台、安装依赖、配置环境、设置定时任务。
+提供两种安装方式，选择适合你的：
 
-### 所有平台通用
+### 方式一：Polyglot 脚本（推荐，无需 Python）
+
+`install.cmd` 是一个多语言脚本，**同一个文件**在不同平台自动运行：
 
 ```bash
-# 1. 克隆项目
-git clone https://github.com/xtgm/linux-do-max.git
-cd linux-do-max
+# Windows: 双击 install.cmd 或命令行运行
+install.cmd
 
-# 2. 运行一键安装脚本（Python 3.8+）
+# Linux/macOS: 赋予执行权限后运行
+chmod +x install.cmd
+./install.cmd
+```
+
+**优点**：无需预装 Python，脚本会自动安装所有依赖。
+
+### 方式二：Python 脚本（功能更完整）
+
+```bash
+# 所有平台通用（需要 Python 3.8+）
 python setup.py
 ```
 
-> **注意**: 需要先安装 Python 3.8+，脚本会自动安装其他依赖。
+**优点**：功能更完整，配置编辑更方便。
 
 ### 脚本功能
 
