@@ -778,11 +778,19 @@ class Installer:
         """运行安装程序"""
         print_banner()
 
-        # 检查是否在项目目录
+        # 自动切换到项目根目录（脚本所在目录的上一级）
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        project_dir = os.path.dirname(script_dir)
+
+        # 如果当前不在项目目录，自动切换
         if not os.path.exists("main.py") and not os.path.exists("requirements.txt"):
-            print_error("请在项目目录下运行此脚本")
-            print_info("cd /path/to/linuxdo-checkin && python setup.py")
-            return
+            if os.path.exists(os.path.join(project_dir, "main.py")):
+                os.chdir(project_dir)
+                print_info(f"已切换到项目目录: {project_dir}")
+            else:
+                print_error("请在项目目录下运行此脚本")
+                print_info("cd /path/to/linuxdo-checkin && python install.py")
+                return
 
         # 显示系统信息
         self.sys_info.print_info()
