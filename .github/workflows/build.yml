@@ -119,24 +119,27 @@ jobs:
 
   # Linux ARM64 打包 (树莓派等)
   build-linux-arm64:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
 
-      - name: 设置 QEMU (ARM 模拟)
+      - name: 设置 QEMU
         uses: docker/setup-qemu-action@v3
 
+      - name: 设置 Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: ARM64 环境打包
-        uses: uraimo/run-on-arch-action@v2
-        with:
-          arch: aarch64
-          distro: bullseye  # Debian 11, glibc 2.31, 兼容性好
-          run: |
-            apt-get update
-            apt-get install -y python3 python3-pip python3-venv
-            pip3 install pyinstaller DrissionPage PyYAML requests
-            pyinstaller --onefile --name linuxdo-checkin-linux-arm64 main.py
+        run: |
+          docker run --rm --platform linux/arm64 \
+            -v ${{ github.workspace }}:/work \
+            -w /work \
+            python:3.11-slim-bullseye \
+            bash -c "
+              pip install pyinstaller DrissionPage PyYAML requests && \
+              pyinstaller --onefile --name linuxdo-checkin-linux-arm64 main.py
+            "
 
       - name: 上传构建产物
         uses: actions/upload-artifact@v4
