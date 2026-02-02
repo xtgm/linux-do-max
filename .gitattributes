@@ -1,0 +1,10 @@
+# Windows 批处理脚本 - 二进制模式保持 CRLF 原样存储
+# 使用 -text 防止 Git 转换换行符，确保 GitHub raw 下载也是 CRLF
+*.cmd -text
+*.bat -text
+
+# Shell 脚本使用 LF 换行符
+*.sh text eol=lf
+
+# Python 脚本使用 LF 换行符
+*.py text eol=lf
