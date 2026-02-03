@@ -36,6 +36,7 @@ def first_login():
     # 启动浏览器（强制有头模式）
     from DrissionPage import ChromiumPage, ChromiumOptions
     from pathlib import Path
+    from core.browser import get_linux_chrome_args, find_browser_path
 
     # 用户数据目录
     user_data_dir = config.user_data_dir
@@ -50,17 +51,26 @@ def first_login():
     # 设置用户数据目录（保存登录状态）
     co.set_argument(f"--user-data-dir={user_data_dir}")
 
-    # 设置浏览器路径
-    if config.browser_path:
-        co.set_browser_path(config.browser_path)
+    # 设置浏览器路径（优先使用配置，否则自动检测）
+    browser_path = config.browser_path
+    if not browser_path:
+        browser_path = find_browser_path()
+    if browser_path:
+        co.set_browser_path(browser_path)
+        print(f"浏览器路径: {browser_path}")
 
     # 强制有头模式
     co.headless(False)
 
-    # 其他选项
+    # 基本选项
     co.set_argument("--disable-blink-features=AutomationControlled")
     co.set_argument("--no-first-run")
     co.set_argument("--no-default-browser-check")
+
+    # Linux 系统自动添加必要参数（关键修复！）
+    linux_args = get_linux_chrome_args()
+    for arg in linux_args:
+        co.set_argument(arg)
 
     # 用户自定义 Chrome 参数（如 --no-sandbox, --headless=new）
     for arg in config.chrome_args:
@@ -71,6 +81,18 @@ def first_login():
         page = ChromiumPage(co)
     except Exception as e:
         print(f"❌ 浏览器启动失败: {e}")
+        print()
+        print("可能的解决方案：")
+        print("1. 确保已安装 Chromium 或 Chrome 浏览器")
+        print("   Ubuntu/Debian: sudo apt install chromium-browser")
+        print("   Fedora/RHEL:   sudo dnf install chromium")
+        print("   Arch:          sudo pacman -S chromium")
+        print()
+        print("2. 如果仍然失败，尝试在 config.yaml 中添加：")
+        print("   chrome_args:")
+        print('     - "--no-sandbox"')
+        print('     - "--disable-dev-shm-usage"')
+        print()
         return
 
     page.get("https://linux.do")

@@ -264,15 +264,37 @@ class SystemInfo:
                 "/usr/bin/chromium-browser",
                 "/usr/bin/chromium",
                 "/usr/lib/chromium/chromium",
+                "/usr/lib/chromium-browser/chromium-browser",
                 "/snap/bin/chromium",
                 "/usr/bin/google-chrome",
                 "/usr/bin/google-chrome-stable",
+                # Flatpak
+                "/var/lib/flatpak/exports/bin/com.google.Chrome",
+                "/var/lib/flatpak/exports/bin/org.chromium.Chromium",
             ]
 
         for path in browser_paths:
-            if os.path.exists(path):
+            if os.path.exists(path) and os.access(path, os.X_OK):
                 self.browser_path = path
                 break
+
+        # 如果没找到，尝试 which 命令（仅 Linux/macOS）
+        if not self.browser_path and self.os_type != "windows":
+            for cmd in ["chromium-browser", "chromium", "google-chrome", "google-chrome-stable"]:
+                try:
+                    result = subprocess.run(
+                        ["which", cmd],
+                        capture_output=True,
+                        text=True,
+                        timeout=5
+                    )
+                    if result.returncode == 0:
+                        path = result.stdout.strip()
+                        if path and os.path.exists(path):
+                            self.browser_path = path
+                            break
+                except:
+                    pass
 
     def print_info(self):
         """打印系统信息"""
@@ -829,26 +851,50 @@ class CronManager:
         print("  3. 自定义")
         choice = input("请选择 [1-3]: ").strip()
 
+        # 检测是否有图形界面
+        has_display = self.sys_info.has_display
+
+        # 构建 cron 命令
+        # 有图形界面：直接运行，设置 DISPLAY
+        # 无图形界面：使用 xvfb-run 或无头模式
+        if has_display:
+            # 有图形界面，设置 DISPLAY 环境变量
+            display = os.environ.get("DISPLAY", ":0")
+            cmd_prefix = f"DISPLAY={display} "
+            cmd_suffix = f"{python_path} main.py >> logs/checkin.log 2>&1"
+            print_info(f"检测到图形界面 (DISPLAY={display})，将直接运行浏览器")
+        else:
+            # 无图形界面，使用 xvfb-run
+            if shutil.which("xvfb-run"):
+                cmd_prefix = ""
+                cmd_suffix = f"xvfb-run -a {python_path} main.py >> logs/checkin.log 2>&1"
+                print_info("无图形界面，将使用 xvfb-run 运行")
+            else:
+                # 没有 xvfb-run，建议使用无头模式
+                cmd_prefix = ""
+                cmd_suffix = f"{python_path} main.py >> logs/checkin.log 2>&1"
+                print_warning("未安装 xvfb-run，建议在 config.yaml 中设置 headless: true")
+
         cron_entries = []
         if choice == "1":
             cron_entries = [
-                f"0 8 * * * cd {project_dir} && xvfb-run -a {python_path} main.py >> logs/checkin.log 2>&1",
-                f"0 20 * * * cd {project_dir} && xvfb-run -a {python_path} main.py >> logs/checkin.log 2>&1",
+                f"0 8 * * * cd {project_dir} && {cmd_prefix}{cmd_suffix}",
+                f"0 20 * * * cd {project_dir} && {cmd_prefix}{cmd_suffix}",
             ]
         elif choice == "2":
             cron_entries = [
-                f"0 9 * * * cd {project_dir} && xvfb-run -a {python_path} main.py >> logs/checkin.log 2>&1",
+                f"0 9 * * * cd {project_dir} && {cmd_prefix}{cmd_suffix}",
             ]
         elif choice == "3":
             t1 = input("第一个时间 (cron 格式，如 0 8 * * *): ").strip()
-            cron_entries.append(f"{t1} cd {project_dir} && xvfb-run -a {python_path} main.py >> logs/checkin.log 2>&1")
+            cron_entries.append(f"{t1} cd {project_dir} && {cmd_prefix}{cmd_suffix}")
             t2 = input("第二个时间 (直接回车跳过): ").strip()
             if t2:
-                cron_entries.append(f"{t2} cd {project_dir} && xvfb-run -a {python_path} main.py >> logs/checkin.log 2>&1")
+                cron_entries.append(f"{t2} cd {project_dir} && {cmd_prefix}{cmd_suffix}")
         else:
             cron_entries = [
-                f"0 8 * * * cd {project_dir} && xvfb-run -a {python_path} main.py >> logs/checkin.log 2>&1",
-                f"0 20 * * * cd {project_dir} && xvfb-run -a {python_path} main.py >> logs/checkin.log 2>&1",
+                f"0 8 * * * cd {project_dir} && {cmd_prefix}{cmd_suffix}",
+                f"0 20 * * * cd {project_dir} && {cmd_prefix}{cmd_suffix}",
             ]
 
         # 创建日志目录
@@ -1049,13 +1095,21 @@ class Installer:
         self.config.set("user_data_dir", user_data_dir or default_user_data)
 
         # 容器环境自动配置 chrome_args
-        if self.sys_info.is_container:
+        # Linux 系统自动添加必要参数
+        chrome_args = []
+        if self.sys_info.os_type == "linux":
             print()
-            print_warning("检测到容器环境 (LXC/Docker)")
-            print_info("已自动添加 --no-sandbox 参数以确保浏览器正常启动")
-            self.config.set("chrome_args", ["--no-sandbox"])
-        else:
-            self.config.set("chrome_args", [])
+            print_info("Linux 系统将自动添加浏览器兼容参数")
+            # Linux 系统通常需要这些参数
+            chrome_args = [
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-gpu"
+            ]
+            if self.sys_info.is_container:
+                print_warning("检测到容器环境 (LXC/Docker)")
+            print_info(f"已添加参数: {', '.join(chrome_args)}")
+        self.config.set("chrome_args", chrome_args)
 
         # Telegram
         print()

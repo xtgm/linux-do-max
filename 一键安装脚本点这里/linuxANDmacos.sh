@@ -208,17 +208,36 @@ interactive_config() {
 
     # 检测浏览器
     BROWSER_PATH=""
-    for p in /usr/bin/chromium-browser /usr/bin/chromium /usr/bin/google-chrome \
+    for p in /usr/bin/chromium-browser /usr/bin/chromium /usr/lib/chromium/chromium \
+             /usr/lib/chromium-browser/chromium-browser /snap/bin/chromium \
+             /usr/bin/google-chrome /usr/bin/google-chrome-stable \
              "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"; do
         [ -x "$p" ] && BROWSER_PATH="$p" && break
     done
 
-    # LXC/Docker 容器检测，自动添加 --no-sandbox
+    # 如果没找到，尝试 which 命令
+    if [ -z "$BROWSER_PATH" ]; then
+        for cmd in chromium-browser chromium google-chrome google-chrome-stable; do
+            p=$(which "$cmd" 2>/dev/null)
+            [ -n "$p" ] && [ -x "$p" ] && BROWSER_PATH="$p" && break
+        done
+    fi
+
+    # Linux 系统自动添加必要的 Chrome 参数
     CHROME_ARGS=""
+    IS_CONTAINER=false
     if [ -f "/.dockerenv" ] || grep -q "docker\|lxc" /proc/1/cgroup 2>/dev/null || \
        [ -f "/run/.containerenv" ] || systemd-detect-virt -c &>/dev/null; then
-        CHROME_ARGS="--no-sandbox"
-        print_warning "检测到容器环境，已自动添加 --no-sandbox 参数"
+        IS_CONTAINER=true
+    fi
+
+    if [ "$OS_NAME" = "Linux" ]; then
+        # Linux 系统通常需要这些参数才能正常启动浏览器
+        print_info "Linux 系统将自动添加浏览器兼容参数"
+        if [ "$IS_CONTAINER" = true ]; then
+            print_warning "检测到容器环境"
+        fi
+        CHROME_ARGS_LIST="--no-sandbox,--disable-dev-shm-usage,--disable-gpu"
     fi
 
     # 生成配置
@@ -233,16 +252,22 @@ headless: $HEADLESS
 browser_path: "$BROWSER_PATH"
 browse_count: $BROWSE_COUNT
 like_probability: $LIKE_PROB
-browse_interval_min: 3
-browse_interval_max: 8
+browse_interval_min: 15
+browse_interval_max: 30
 tg_bot_token: "$TG_TOKEN"
 tg_chat_id: "$TG_CHAT_ID"
 
 # Chrome 额外启动参数
-# LXC/Docker 容器需要 --no-sandbox
-# 无界面服务器可添加 --headless=new
+# Linux 系统自动添加 --no-sandbox 等参数
+# 通常不需要手动修改
 chrome_args:
-$([ -n "$CHROME_ARGS" ] && echo "  - \"$CHROME_ARGS\"" || echo "  []")
+$(if [ -n "$CHROME_ARGS_LIST" ]; then
+    echo "$CHROME_ARGS_LIST" | tr ',' '\n' | while read arg; do
+        echo "  - \"$arg\""
+    done
+else
+    echo "  []"
+fi)
 EOF
 
     mkdir -p "$USER_DATA_DIR"
@@ -337,23 +362,40 @@ EOF
         # 移除旧的 cron 任务
         crontab -l 2>/dev/null | grep -v "linuxdo" | grep -v "LinuxDO" > /tmp/crontab.tmp || true
 
+        # 构建 cron 命令
+        # 有图形界面：设置 DISPLAY 环境变量
+        # 无图形界面：使用 xvfb-run
+        if [ "$HAS_DISPLAY" = true ]; then
+            DISPLAY_VAR="${DISPLAY:-:0}"
+            CRON_CMD="DISPLAY=$DISPLAY_VAR $PYTHON_PATH main.py >> logs/checkin.log 2>&1"
+            print_info "检测到图形界面 (DISPLAY=$DISPLAY_VAR)，将直接运行浏览器"
+        else
+            if command -v xvfb-run &>/dev/null; then
+                CRON_CMD="xvfb-run -a $PYTHON_PATH main.py >> logs/checkin.log 2>&1"
+                print_info "无图形界面，将使用 xvfb-run 运行"
+            else
+                CRON_CMD="$PYTHON_PATH main.py >> logs/checkin.log 2>&1"
+                print_warning "未安装 xvfb-run，建议在 config.yaml 中设置 headless: true"
+            fi
+        fi
+
         case $time_choice in
             1)
                 echo "# LinuxDO签到 - 08:00" >> /tmp/crontab.tmp
-                echo "0 8 * * * cd $PROJECT_DIR && xvfb-run -a $PYTHON_PATH main.py >> logs/checkin.log 2>&1" >> /tmp/crontab.tmp
+                echo "0 8 * * * cd $PROJECT_DIR && $CRON_CMD" >> /tmp/crontab.tmp
                 echo "# LinuxDO签到 - 20:00" >> /tmp/crontab.tmp
-                echo "0 20 * * * cd $PROJECT_DIR && xvfb-run -a $PYTHON_PATH main.py >> logs/checkin.log 2>&1" >> /tmp/crontab.tmp
+                echo "0 20 * * * cd $PROJECT_DIR && $CRON_CMD" >> /tmp/crontab.tmp
                 ;;
             2)
                 echo "# LinuxDO签到 - 09:00" >> /tmp/crontab.tmp
-                echo "0 9 * * * cd $PROJECT_DIR && xvfb-run -a $PYTHON_PATH main.py >> logs/checkin.log 2>&1" >> /tmp/crontab.tmp
+                echo "0 9 * * * cd $PROJECT_DIR && $CRON_CMD" >> /tmp/crontab.tmp
                 ;;
             3)
                 read -p "输入时间 (格式 HH:MM，如 08:00): " custom_time
                 HOUR=$(echo "$custom_time" | cut -d: -f1 | sed 's/^0//')
                 MINUTE=$(echo "$custom_time" | cut -d: -f2 | sed 's/^0//')
                 echo "# LinuxDO签到 - $custom_time" >> /tmp/crontab.tmp
-                echo "$MINUTE $HOUR * * * cd $PROJECT_DIR && xvfb-run -a $PYTHON_PATH main.py >> logs/checkin.log 2>&1" >> /tmp/crontab.tmp
+                echo "$MINUTE $HOUR * * * cd $PROJECT_DIR && $CRON_CMD" >> /tmp/crontab.tmp
                 ;;
         esac
 

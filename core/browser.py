@@ -2,11 +2,147 @@
 浏览器控制模块
 使用 DrissionPage 控制 Chrome 浏览器
 """
+import os
+import sys
 import time
+import platform
+import subprocess
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 from DrissionPage import ChromiumPage, ChromiumOptions
 from .config import config
+
+
+def is_linux() -> bool:
+    """检测是否为 Linux 系统"""
+    return platform.system().lower() == "linux"
+
+
+def is_arm() -> bool:
+    """检测是否为 ARM 架构"""
+    machine = platform.machine().lower()
+    return machine in ("aarch64", "arm64", "armv7l", "armv8l")
+
+
+def is_container() -> bool:
+    """检测是否在容器环境中（Docker/LXC/Podman）"""
+    # Docker
+    if os.path.exists("/.dockerenv"):
+        return True
+    # LXC/Podman
+    if os.path.exists("/run/.containerenv"):
+        return True
+    # 检查 cgroup
+    try:
+        with open("/proc/1/cgroup", "r") as f:
+            content = f.read()
+            if "docker" in content or "lxc" in content or "kubepods" in content:
+                return True
+    except:
+        pass
+    # systemd-detect-virt
+    try:
+        result = subprocess.run(
+            ["systemd-detect-virt", "-c"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if result.returncode == 0:
+            virt = result.stdout.strip().lower()
+            if virt in ("lxc", "lxc-libvirt", "docker", "podman", "openvz"):
+                return True
+    except:
+        pass
+    return False
+
+
+def is_root() -> bool:
+    """检测是否以 root 用户运行"""
+    if is_linux():
+        return os.geteuid() == 0
+    return False
+
+
+def find_browser_path() -> str:
+    """自动查找浏览器路径"""
+    if sys.platform == "win32":
+        paths = [
+            os.path.expandvars(r"%ProgramFiles%\Google\Chrome\Application\chrome.exe"),
+            os.path.expandvars(r"%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"),
+            os.path.expandvars(r"%LocalAppData%\Google\Chrome\Application\chrome.exe"),
+        ]
+    elif sys.platform == "darwin":
+        paths = [
+            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+            "/Applications/Chromium.app/Contents/MacOS/Chromium",
+        ]
+    else:  # Linux
+        paths = [
+            "/usr/bin/chromium-browser",
+            "/usr/bin/chromium",
+            "/usr/lib/chromium/chromium",
+            "/usr/lib/chromium-browser/chromium-browser",
+            "/snap/bin/chromium",
+            "/usr/bin/google-chrome",
+            "/usr/bin/google-chrome-stable",
+            # Flatpak
+            "/var/lib/flatpak/exports/bin/com.google.Chrome",
+            "/var/lib/flatpak/exports/bin/org.chromium.Chromium",
+        ]
+
+    for path in paths:
+        if os.path.exists(path) and os.access(path, os.X_OK):
+            return path
+
+    # 尝试 which 命令
+    for cmd in ["chromium-browser", "chromium", "google-chrome", "google-chrome-stable"]:
+        try:
+            result = subprocess.run(
+                ["which", cmd],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            if result.returncode == 0:
+                path = result.stdout.strip()
+                if path and os.path.exists(path):
+                    return path
+        except:
+            pass
+
+    return ""
+
+
+def get_linux_chrome_args() -> List[str]:
+    """获取 Linux 系统需要的 Chrome 启动参数"""
+    args = []
+
+    # Linux 系统通常需要 --no-sandbox（特别是 root 用户或容器环境）
+    if is_linux():
+        # root 用户必须使用 --no-sandbox
+        if is_root():
+            args.append("--no-sandbox")
+            print("[浏览器] 检测到 root 用户，添加 --no-sandbox")
+        # 容器环境需要 --no-sandbox
+        elif is_container():
+            args.append("--no-sandbox")
+            print("[浏览器] 检测到容器环境，添加 --no-sandbox")
+        else:
+            # 普通 Linux 用户也建议添加，避免权限问题
+            # 很多 Linux 发行版的 Chromium 默认需要此参数
+            args.append("--no-sandbox")
+
+        # 禁用 /dev/shm 使用（在某些环境下 /dev/shm 太小会导致崩溃）
+        args.append("--disable-dev-shm-usage")
+
+        # 禁用 GPU（在无 GPU 或虚拟机环境下避免问题）
+        args.append("--disable-gpu")
+
+        # 禁用软件光栅化（减少资源占用）
+        args.append("--disable-software-rasterizer")
+
+    return args
 
 
 class Browser:
@@ -32,17 +168,27 @@ class Browser:
         # 有头/无头模式
         co.headless(config.headless)
 
-        # 自定义浏览器路径
-        if config.browser_path:
-            co.set_browser_path(config.browser_path)
+        # 自定义浏览器路径（优先使用配置，否则自动检测）
+        browser_path = config.browser_path
+        if not browser_path:
+            browser_path = find_browser_path()
+        if browser_path:
+            co.set_browser_path(browser_path)
+            print(f"[浏览器] 使用浏览器: {browser_path}")
 
-        # 其他选项
+        # 基本选项
         co.set_argument("--disable-blink-features=AutomationControlled")
         co.set_argument("--no-first-run")
         co.set_argument("--no-default-browser-check")
         co.set_argument("--disable-infobars")
 
+        # Linux 系统自动添加必要参数
+        linux_args = get_linux_chrome_args()
+        for arg in linux_args:
+            co.set_argument(arg)
+
         # 用户自定义 Chrome 参数（如 --no-sandbox, --headless=new）
+        # 这些参数会覆盖自动添加的参数
         for arg in config.chrome_args:
             co.set_argument(arg)
 

@@ -16,18 +16,35 @@ user_data_dir: ""
 
 # 是否无头模式（默认 false，有头模式）
 # 有头模式 CF 验证通过率更高
+# 无图形界面的服务器建议设为 true
 headless: false
 
-# 浏览器路径（可选，留空使用系统默认）
+# 浏览器路径（可选，留空自动检测）
+# Linux 常见路径:
+#   /usr/bin/chromium-browser (Ubuntu/Debian)
+#   /usr/bin/chromium (Arch/Fedora)
+#   /snap/bin/chromium (Snap 安装)
+#   /usr/bin/google-chrome (Chrome)
 browser_path: ""
 
 # Chrome 额外启动参数（可选）
-# LXC/Docker 容器环境需要添加 --no-sandbox
-# 无界面服务器需要添加 --headless=new
+#
+# 重要说明：
+# - Linux 系统会自动添加 --no-sandbox 等必要参数
+# - 通常不需要手动配置此项
+# - 如果浏览器仍然启动失败，可以尝试添加以下参数
+#
+# 常用参数:
+#   --no-sandbox          Linux 必需（已自动添加）
+#   --disable-dev-shm-usage  避免 /dev/shm 空间不足（已自动添加）
+#   --disable-gpu         禁用 GPU 加速（已自动添加）
+#   --headless=new        新版无头模式
+#   --remote-debugging-port=9222  指定调试端口
+#
 # 示例:
 #   chrome_args:
 #     - "--no-sandbox"
-#     - "--headless=new"
+#     - "--disable-dev-shm-usage"
 #     - "--disable-gpu"
 chrome_args: []
 
@@ -39,8 +56,8 @@ browse_count: 10
 like_probability: 0.3
 
 # 浏览间隔（秒）
-browse_interval_min: 3
-browse_interval_max: 8
+browse_interval_min: 15
+browse_interval_max: 30
 
 # ========== Telegram 通知 ==========
 # Bot Token（从 @BotFather 获取）

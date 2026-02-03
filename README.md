@@ -2062,28 +2062,7 @@ xvfb-run -a chromium-browser --version
 
 ## 故障排除
 
-### 问题 1：浏览器启动失败
-
-**错误信息：**
-```
-[浏览器] 启动失败: ...
-```
-
-**解决方法：**
-
-1. 检查 Chrome 是否已安装
-2. 检查 `browser_path` 配置是否正确
-3. 检查是否有其他 Chrome 进程占用用户数据目录
-
-```bash
-# Windows - 关闭所有 Chrome 进程
-taskkill /f /im chrome.exe
-
-# Linux/macOS - 关闭所有 Chrome 进程
-pkill -f chrome
-```
-
-### 问题 1.1：LXC/Docker 容器中浏览器启动失败
+### 问题 1：Linux 系统浏览器启动失败
 
 **错误信息：**
 ```
@@ -2096,29 +2075,33 @@ pkill -f chrome
 3、如果是Linux系统，尝试添加'--no-sandbox'启动参数
 ```
 
-**原因：** LXC/Docker 容器中 Chrome 需要 `--no-sandbox` 参数才能启动。
+**原因：** Linux 系统（包括有图形界面的桌面环境）运行 Chromium 通常需要额外的启动参数。
 
 **解决方法：**
 
-**方法1：修改配置文件（推荐）**
+> **v0.3.2+ 版本已自动修复此问题**，程序会自动检测 Linux 系统并添加必要参数。
+> 如果仍然遇到问题，请尝试以下方法：
+
+**方法1：更新到最新版本（推荐）**
+
+```bash
+git pull origin main
+```
+
+**方法2：手动修改配置文件**
 
 编辑 `config.yaml`，添加：
 
 ```yaml
 chrome_args:
   - "--no-sandbox"
-```
-
-**方法2：设置环境变量**
-
-```bash
-export CHROME_ARGS="--no-sandbox"
-./linuxdo-checkin --first-login
+  - "--disable-dev-shm-usage"
+  - "--disable-gpu"
 ```
 
 **方法3：重新运行安装脚本**
 
-安装脚本会自动检测容器环境并配置：
+安装脚本会自动检测 Linux 系统并配置：
 
 ```bash
 # Linux/macOS
@@ -2128,13 +2111,48 @@ export CHROME_ARGS="--no-sandbox"
 python3 一键安装脚本点这里/install.py
 ```
 
-**注意：** 如果同时需要无头模式，可以添加多个参数：
+**方法4：检查浏览器是否正确安装**
 
-```yaml
-chrome_args:
-  - "--no-sandbox"
-  - "--headless=new"
-  - "--disable-gpu"
+```bash
+# Ubuntu/Debian
+sudo apt install chromium-browser
+
+# Fedora/RHEL
+sudo dnf install chromium
+
+# Arch
+sudo pacman -S chromium
+
+# 验证安装
+which chromium-browser || which chromium || which google-chrome
+```
+
+### 问题 1.1：LXC/Docker 容器中浏览器启动失败
+
+**原因：** 容器环境中 Chrome 必须使用 `--no-sandbox` 参数。
+
+**解决方法：** 同上，v0.3.2+ 版本已自动处理。
+
+### 问题 1.2：ARM 设备浏览器启动失败
+
+**原因：** ARM 设备（树莓派、ARM 服务器等）可能需要额外配置。
+
+**解决方法：**
+
+1. 确保安装了 ARM 版本的 Chromium：
+```bash
+# Raspberry Pi OS / Debian ARM
+sudo apt install chromium-browser
+
+# 验证
+chromium-browser --version
+```
+
+2. 如果仍然失败，检查 `/dev/shm` 大小：
+```bash
+df -h /dev/shm
+# 如果太小，可以扩大：
+sudo mount -o remount,size=512M /dev/shm
 ```
 
 ### 问题 2：页面加载超时
