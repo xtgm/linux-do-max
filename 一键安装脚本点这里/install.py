@@ -683,58 +683,65 @@ class DependencyInstaller:
                 "libxdamage1", "libxfixes3", "libxrandr2",
                 "libgbm1", "libasound2",
                 # 下载工具
-                "wget", "curl"
+                "wget", "curl", "gnupg"
             ]
             print_info("使用 apt 安装依赖...")
             self._run_cmd("sudo apt-get update")
             for pkg in base_packages:
                 self._run_cmd(f"sudo apt-get install -y {pkg}", ignore_error=True)
 
-            # 强制安装 Google Chrome（Snap 版 Chromium 有沙箱限制，无法使用）
-            # 只有检测到 google-chrome 才跳过
+            # 安装 Google Chrome（通过官方 apt 源，不使用 Snap）
             has_chrome = (
                 shutil.which("google-chrome") or
                 shutil.which("google-chrome-stable")
             )
 
             if has_chrome:
-                print_info("检测到 Google Chrome，跳过安装")
-            else:
-                # Ubuntu 22.04+ 的 chromium-browser 是 Snap 包，有沙箱限制
-                # 必须安装 Google Chrome（deb 包）
-                print_info("安装 Google Chrome（必需，Snap 版 Chromium 不支持）...")
+                # 检查是否是 Snap 版本
+                chrome_path = shutil.which("google-chrome") or shutil.which("google-chrome-stable")
+                real_path = os.path.realpath(chrome_path) if chrome_path else ""
+                if "snap" in real_path:
+                    print_warning("检测到 Snap 版 Chrome，需要安装官方版本...")
+                    has_chrome = False
+                else:
+                    print_info("检测到 Google Chrome，跳过安装")
+
+            if not has_chrome:
+                print_info("安装 Google Chrome（通过官方 apt 源）...")
 
                 # 检查架构
                 if self.sys_info.is_arm:
-                    print_warning("ARM64 架构暂不支持 Google Chrome，尝试安装 Chromium...")
-                    self._run_cmd("sudo apt-get install -y chromium-browser", ignore_error=True)
+                    print_error("ARM64 架构暂不支持 Google Chrome")
+                    print_info("请使用 x64 架构的系统，或在其他电脑完成首次登录后复制登录状态")
                 else:
-                    chrome_deb = "/tmp/google-chrome.deb"
-                    chrome_url = "https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb"
+                    # 添加 Google 官方 apt 源
+                    print_info("添加 Google Chrome 官方源...")
 
-                    print_info(f"下载 Google Chrome: {chrome_url}")
-                    download_result = self._run_cmd(
-                        f'wget -O "{chrome_deb}" "{chrome_url}"',
+                    # 添加 Google 签名密钥
+                    self._run_cmd(
+                        "wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg",
                         ignore_error=True
                     )
 
-                    # 检查文件是否下载成功
-                    if download_result == 0 and os.path.exists(chrome_deb) and os.path.getsize(chrome_deb) > 1000000:
-                        print_info("安装 Google Chrome...")
-                        self._run_cmd(f'sudo dpkg -i "{chrome_deb}"', ignore_error=True)
-                        self._run_cmd("sudo apt-get install -f -y", ignore_error=True)
-                        self._run_cmd(f'rm -f "{chrome_deb}"', ignore_error=True)
+                    # 添加 apt 源
+                    self._run_cmd(
+                        'echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list > /dev/null',
+                        ignore_error=True
+                    )
 
-                        # 验证安装
-                        if shutil.which("google-chrome") or shutil.which("google-chrome-stable"):
-                            print_success("Google Chrome 安装成功")
-                        else:
-                            print_error("Google Chrome 安装失败！")
-                            print_info("请手动安装: wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && sudo dpkg -i google-chrome-stable_current_amd64.deb")
+                    # 更新并安装
+                    self._run_cmd("sudo apt-get update", ignore_error=True)
+                    self._run_cmd("sudo apt-get install -y google-chrome-stable", ignore_error=True)
+
+                    # 验证安装
+                    if shutil.which("google-chrome") or shutil.which("google-chrome-stable"):
+                        print_success("Google Chrome 安装成功")
                     else:
-                        print_error("Google Chrome 下载失败！")
-                        print_info("请检查网络连接或代理设置")
-                        print_info("手动安装: wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && sudo dpkg -i google-chrome-stable_current_amd64.deb")
+                        print_error("Google Chrome 安装失败！")
+                        print_info("请手动安装：")
+                        print_info("  wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb")
+                        print_info("  sudo dpkg -i google-chrome-stable_current_amd64.deb")
+                        print_info("  sudo apt-get install -f -y")
 
             # 刷新字体缓存
             self._run_cmd("fc-cache -fv", ignore_error=True)

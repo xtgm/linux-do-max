@@ -217,33 +217,43 @@ install_deps() {
                 xvfb fonts-wqy-zenhei fonts-wqy-microhei \
                 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 \
                 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 \
-                libxrandr2 libgbm1 libasound2 wget curl 2>/dev/null || true
+                libxrandr2 libgbm1 libasound2 wget curl gnupg 2>/dev/null || true
 
-            # 强制安装 Google Chrome（Snap 版 Chromium 有沙箱限制，无法使用）
-            # 只有检测到 google-chrome 才跳过
+            # 安装 Google Chrome（通过官方 apt 源，不使用 Snap）
             if command -v google-chrome &>/dev/null || command -v google-chrome-stable &>/dev/null; then
                 print_info "检测到 Google Chrome，跳过安装"
             else
-                print_info "安装 Google Chrome（必需，Snap 版 Chromium 不支持）..."
-                TEMP_DEB="/tmp/google-chrome.deb"
+                print_info "安装 Google Chrome（通过官方 apt 源）..."
 
-                # 根据架构选择下载链接
+                # 根据架构选择安装方式
                 if [ "$ARCH_TYPE" = "arm64" ]; then
                     print_warning "ARM64 架构暂不支持 Google Chrome，尝试安装 Chromium..."
+                    # ARM64 使用 apt 版 chromium（非 Snap）
                     sudo apt-get install -y chromium-browser 2>/dev/null || \
                     sudo apt-get install -y chromium 2>/dev/null || true
                 else
-                    # x64 架构下载 Google Chrome
-                    print_info "下载 Google Chrome..."
-                    wget -O "$TEMP_DEB" "https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb" 2>/dev/null
-                    if [ -f "$TEMP_DEB" ] && [ -s "$TEMP_DEB" ]; then
-                        print_info "安装 Google Chrome..."
-                        sudo dpkg -i "$TEMP_DEB" 2>/dev/null || true
-                        sudo apt-get install -f -y 2>/dev/null || true
-                        rm -f "$TEMP_DEB"
+                    # x64 架构：添加 Google 官方 apt 源
+                    print_info "添加 Google Chrome 官方源..."
+
+                    # 添加 Google 签名密钥
+                    wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg 2>/dev/null
+
+                    # 添加 apt 源
+                    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list > /dev/null
+
+                    # 更新并安装
+                    sudo apt-get update
+                    sudo apt-get install -y google-chrome-stable
+
+                    # 验证安装
+                    if command -v google-chrome &>/dev/null || command -v google-chrome-stable &>/dev/null; then
+                        print_success "Google Chrome 安装成功"
                     else
-                        print_error "Google Chrome 下载失败"
-                        print_info "请检查网络连接或代理设置"
+                        print_error "Google Chrome 安装失败！"
+                        print_info "请手动安装："
+                        print_info "  wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb"
+                        print_info "  sudo dpkg -i google-chrome-stable_current_amd64.deb"
+                        print_info "  sudo apt-get install -f -y"
                     fi
                 fi
             fi

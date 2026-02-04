@@ -133,48 +133,31 @@ def has_display() -> bool:
 
 
 def find_browser_path() -> str:
-    """自动查找浏览器路径"""
+    """自动查找浏览器路径（只使用 Google Chrome，不使用 Snap Chromium）"""
     if is_windows():
         paths = [
             os.path.expandvars(r"%ProgramFiles%\Google\Chrome\Application\chrome.exe"),
             os.path.expandvars(r"%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"),
             os.path.expandvars(r"%LocalAppData%\Google\Chrome\Application\chrome.exe"),
-            os.path.expandvars(r"%ProgramFiles%\Microsoft\Edge\Application\msedge.exe"),
         ]
     elif is_macos():
         paths = [
             "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-            "/Applications/Chromium.app/Contents/MacOS/Chromium",
-            "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
         ]
-    else:  # Linux
+    else:  # Linux - 只使用 Google Chrome
         paths = [
-            # Google Chrome (优先)
             "/usr/bin/google-chrome",
             "/usr/bin/google-chrome-stable",
             "/opt/google/chrome/chrome",
-            # Chromium
-            "/usr/bin/chromium-browser",
-            "/usr/bin/chromium",
-            "/usr/lib/chromium/chromium",
-            "/usr/lib/chromium-browser/chromium-browser",
-            # Snap
-            "/snap/bin/chromium",
-            "/snap/bin/google-chrome",
-            # Flatpak
-            "/var/lib/flatpak/exports/bin/com.google.Chrome",
-            "/var/lib/flatpak/exports/bin/org.chromium.Chromium",
-            # ARM 特殊路径
-            "/usr/lib/chromium-browser/chromium-browser-v7",
         ]
 
     for path in paths:
         if os.path.exists(path) and os.access(path, os.X_OK):
             return path
 
-    # Linux/macOS: 尝试 which 命令
+    # Linux/macOS: 尝试 which 命令（只找 google-chrome）
     if not is_windows():
-        for cmd in ["google-chrome", "google-chrome-stable", "chromium-browser", "chromium"]:
+        for cmd in ["google-chrome", "google-chrome-stable"]:
             try:
                 result = subprocess.run(
                     ["which", cmd],
@@ -185,7 +168,10 @@ def find_browser_path() -> str:
                 if result.returncode == 0:
                     path = result.stdout.strip()
                     if path and os.path.exists(path):
-                        return path
+                        # 排除 Snap 版本
+                        real_path = os.path.realpath(path)
+                        if "snap" not in real_path:
+                            return path
             except:
                 pass
 
