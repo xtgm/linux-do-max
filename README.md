@@ -36,6 +36,21 @@
 
 ## 更新日志
 
+### v0.3.9 (2026-02-04) - Linux 浏览器连接修复
+
+**修复问题：** Linux 系统 Chrome 浏览器打开后 DrissionPage 连接失败
+
+| 改进项 | 说明 |
+|--------|------|
+| 远程调试端口 | 添加 `--remote-debugging-port=9222` 参数 |
+| 端口配置 | DrissionPage 使用 `set_local_port(9222)` 连接 |
+| 额外参数 | 添加 `--disable-extensions`、`--disable-background-networking` |
+
+**修改文件：**
+- `core/browser.py` - `get_linux_chrome_args()` 添加远程调试端口
+- `core/browser.py` - `_create_options()` 添加 `set_local_port(9222)`
+- `main.py` - `first_login()` 同步添加端口配置
+
 ### v0.3.8 (2026-02-04) - 文档完善 + Ubuntu 浏览器安装优化
 
 **新增内容：** Linux 虚拟机代理配置指南

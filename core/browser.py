@@ -142,6 +142,15 @@ def get_linux_chrome_args() -> List[str]:
         # 禁用软件光栅化（减少资源占用）
         args.append("--disable-software-rasterizer")
 
+        # 远程调试端口（DrissionPage 需要通过此端口连接浏览器）
+        args.append("--remote-debugging-port=9222")
+
+        # 禁用扩展（避免扩展干扰）
+        args.append("--disable-extensions")
+
+        # 禁用后台网络服务（减少资源占用）
+        args.append("--disable-background-networking")
+
     return args
 
 
@@ -186,6 +195,10 @@ class Browser:
         linux_args = get_linux_chrome_args()
         for arg in linux_args:
             co.set_argument(arg)
+
+        # Linux 系统设置调试端口（DrissionPage 通过此端口连接浏览器）
+        if is_linux():
+            co.set_local_port(9222)
 
         # 用户自定义 Chrome 参数（如 --no-sandbox, --headless=new）
         # 这些参数会覆盖自动添加的参数

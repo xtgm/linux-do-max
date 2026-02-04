@@ -36,6 +36,7 @@ def first_login():
     # 启动浏览器（强制有头模式）
     from DrissionPage import ChromiumPage, ChromiumOptions
     from pathlib import Path
+    import platform
     from core.browser import get_linux_chrome_args, find_browser_path
 
     # 用户数据目录
@@ -71,6 +72,10 @@ def first_login():
     linux_args = get_linux_chrome_args()
     for arg in linux_args:
         co.set_argument(arg)
+
+    # Linux 系统设置调试端口（DrissionPage 通过此端口连接浏览器）
+    if platform.system().lower() == "linux":
+        co.set_local_port(9222)
 
     # 用户自定义 Chrome 参数（如 --no-sandbox, --headless=new）
     for arg in config.chrome_args:
