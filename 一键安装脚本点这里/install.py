@@ -363,45 +363,37 @@ class SystemInfo:
             return False
 
     def print_info(self):
-        """打印系统信息"""
-        def display_width(text: str) -> int:
-            """计算字符串的显示宽度（中文占2，英文占1）"""
-            width = 0
-            for c in text:
-                if '\u4e00' <= c <= '\u9fff' or '\u3000' <= c <= '\u303f' or '\uff00' <= c <= '\uffef':
-                    width += 2
-                else:
-                    width += 1
-            return width
-
-        def pad_right(text: str, width: int) -> str:
-            """右填充到指定显示宽度"""
-            text = str(text)
-            current_width = display_width(text)
-            if current_width >= width:
-                return text[:width]
-            return text + ' ' * (width - current_width)
-
+        """打印系统信息（简洁格式，避免中文宽度问题）"""
         print()
-        print("┌────────────────────────────────────────┐")
-        print("│          系统环境检测结果              │")
-        print("├────────────────────────────────────────┤")
-        print(f"│ {pad_right('操作系统', 10)}│ {pad_right(self.os_name, 26)} │")
-        print(f"│ {pad_right('版本', 10)}│ {pad_right(self.os_version[:26], 26)} │")
-        arch_str = f"{self.arch_raw} ({self.arch})"
-        print(f"│ {pad_right('架构', 10)}│ {pad_right(arch_str, 26)} │")
+        print("=" * 42)
+        print("          系统环境检测结果")
+        print("=" * 42)
+
+        items = [
+            ("操作系统", self.os_name),
+            ("版本", (self.os_version[:24] if self.os_version else "未知")),
+            ("架构", f"{self.arch_raw} ({self.arch})"),
+        ]
         if self.os_type == "linux":
-            print(f"│ {pad_right('发行版', 10)}│ {pad_right(self.distro, 26)} │")
-            print(f"│ {pad_right('包管理器', 10)}│ {pad_right(self.pkg_manager, 26)} │")
-        print(f"│ {pad_right('ARM设备', 10)}│ {pad_right('是' if self.is_arm else '否', 26)} │")
-        print(f"│ {pad_right('树莓派', 10)}│ {pad_right('是' if self.is_raspberry_pi else '否', 26)} │")
-        print(f"│ {pad_right('容器环境', 10)}│ {pad_right('是' if self.is_container else '否', 26)} │")
+            items.append(("发行版", self.distro or "未知"))
+            items.append(("包管理器", self.pkg_manager or "未知"))
+        items.extend([
+            ("ARM设备", "是" if self.is_arm else "否"),
+            ("树莓派", "是" if self.is_raspberry_pi else "否"),
+            ("容器环境", "是" if self.is_container else "否"),
+        ])
         if self.is_container:
             container_type = "Docker" if self.is_docker else ("LXC" if self.is_lxc else "其他")
-            print(f"│ {pad_right('容器类型', 10)}│ {pad_right(container_type, 26)} │")
-        print(f"│ {pad_right('图形界面', 10)}│ {pad_right('有' if self.has_display else '无', 26)} │")
-        print(f"│ {pad_right('浏览器', 10)}│ {pad_right('已安装' if self.browser_path else '未安装', 26)} │")
-        print("└────────────────────────────────────────┘")
+            items.append(("容器类型", container_type))
+        items.extend([
+            ("图形界面", "有" if self.has_display else "无"),
+            ("浏览器", "已安装" if self.browser_path else "未安装"),
+        ])
+
+        for label, value in items:
+            print(f"  {label}: {value}")
+
+        print("=" * 42)
         print()
 
 
@@ -550,9 +542,9 @@ tg_chat_id: "{self.config['tg_chat_id']}"
     def interactive_edit(self):
         """交互式编辑配置"""
         print()
-        print("┌─────────────────────────────────────────┐")
-        print("│           配置编辑菜单                  │")
-        print("└─────────────────────────────────────────┘")
+        print("=" * 42)
+        print("            配置编辑菜单")
+        print("=" * 42)
         print()
 
         while True:
@@ -628,7 +620,7 @@ class DependencyInstaller:
         elif self.sys_info.os_type == "windows":
             self._check_windows_deps()
 
-        print_success("系统依赖安装完成"))
+        print_success("系统依赖安装完成")
 
     def _verify_browser_install(self) -> bool:
         """验证浏览器安装"""

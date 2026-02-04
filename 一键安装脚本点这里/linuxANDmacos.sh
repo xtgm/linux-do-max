@@ -93,40 +93,16 @@ detect_system() {
     [ "$HAS_DISPLAY" = true ] && GUI_DISPLAY="有"
 
     echo ""
-    echo "┌─────────────────────────────────────┐"
-    echo "│        系统环境检测结果             │"
-    echo "├─────────────────────────────────────┤"
-
-    # 格式化输出函数（处理中文宽度问题）
-    # 标签固定11字符宽度，值固定20字符宽度
-    print_row() {
-        local label="$1"
-        local value="$2"
-        # 计算值的显示宽度（中文算2，ASCII算1）
-        local val_display_width=$(echo -n "$value" | awk '{
-            w=0
-            for(i=1;i<=length($0);i++) {
-                c=substr($0,i,1)
-                if(c~/[\x00-\x7f]/) w+=1
-                else w+=2
-            }
-            print w
-        }')
-        # 需要补充的空格数
-        local padding=$((20 - val_display_width))
-        [ $padding -lt 0 ] && padding=0
-        local spaces=$(printf "%${padding}s" "")
-        echo "│ ${label}${value}${spaces}  │"
-    }
-
-    print_row "操作系统   " "$OS_NAME"
-    print_row "架构       " "$ARCH ($ARCH_TYPE)"
-    [ -n "$DISTRO" ] && print_row "发行版     " "$DISTRO"
-    [ -n "$PKG_MGR" ] && print_row "包管理器   " "$PKG_MGR"
-    print_row "ARM设备    " "$ARM_DISPLAY"
-    print_row "图形界面   " "$GUI_DISPLAY"
-
-    echo "└─────────────────────────────────────┘"
+    echo "=========================================="
+    echo "          系统环境检测结果"
+    echo "=========================================="
+    echo "  操作系统: $OS_NAME"
+    echo "  架构: $ARCH ($ARCH_TYPE)"
+    [ -n "$DISTRO" ] && echo "  发行版: $DISTRO"
+    [ -n "$PKG_MGR" ] && echo "  包管理器: $PKG_MGR"
+    echo "  ARM设备: $ARM_DISPLAY"
+    echo "  图形界面: $GUI_DISPLAY"
+    echo "=========================================="
     echo ""
 }
 
