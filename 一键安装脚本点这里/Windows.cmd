@@ -111,18 +111,36 @@ goto :menu
 
 :check_update
 set "UPDATE_DONE=0"
-REM 检查是否有 venv 和 updater.py
-if not exist "venv\Scripts\python.exe" goto :eof
+REM 检查 updater.py 是否存在
 if not exist "updater.py" goto :eof
+
+REM 确定使用哪个 Python：优先 venv，否则系统 Python
+set "PYTHON_CMD="
+if exist "venv\Scripts\python.exe" (
+    set "PYTHON_CMD=venv\Scripts\python.exe"
+) else (
+    REM 检查系统 Python 是否可用
+    where python >nul 2>&1
+    if not errorlevel 1 (
+        set "PYTHON_CMD=python"
+    )
+)
+
+if "%PYTHON_CMD%"=="" (
+    echo [信息] 未检测到 Python 环境，跳过更新检查
+    goto :eof
+)
 
 echo [信息] 检查更新中...
 echo.
 
 REM 使用 Python 检查更新
-venv\Scripts\python.exe -c "from updater import check_update; from version import __version__; info = check_update(silent=True); print(f'CURRENT={__version__}'); print(f'LATEST={info[\"latest_version\"]}' if info else 'LATEST=NONE')" > "%TEMP%\update_check.txt" 2>nul
+%PYTHON_CMD% -c "from updater import check_update; from version import __version__; info = check_update(silent=True); print(f'CURRENT={__version__}'); print(f'LATEST={info[\"latest_version\"]}' if info else 'LATEST=NONE')" > "%TEMP%\update_check.txt" 2>nul
 
 if errorlevel 1 (
-    echo [警告] 更新检查失败
+    echo [警告] 更新检查失败，可能缺少依赖
+    echo [提示] 如果是首次使用，请选择 1. 一键安装
+    echo.
     goto :eof
 )
 
@@ -154,7 +172,7 @@ if /i "%do_update%"=="n" (
 
 echo.
 echo [信息] 正在更新...
-venv\Scripts\python.exe -c "from updater import prompt_update; prompt_update()"
+%PYTHON_CMD% -c "from updater import prompt_update; prompt_update()"
 echo.
 echo [提示] 更新完成，请重新运行此脚本
 set "UPDATE_DONE=1"
@@ -163,12 +181,25 @@ goto :eof
 
 :manual_update
 echo.
-if not exist "venv\Scripts\python.exe" (
-    echo [错误] 请先运行一键安装配置 Python 环境
+REM 确定使用哪个 Python
+set "PYTHON_CMD="
+if exist "venv\Scripts\python.exe" (
+    set "PYTHON_CMD=venv\Scripts\python.exe"
+) else (
+    where python >nul 2>&1
+    if not errorlevel 1 (
+        set "PYTHON_CMD=python"
+    )
+)
+
+if "%PYTHON_CMD%"=="" (
+    echo [错误] 未检测到 Python 环境
+    echo [提示] 请先运行 1. 一键安装
     pause
     goto :menu
 )
-venv\Scripts\python.exe main.py --check-update
+
+%PYTHON_CMD% main.py --check-update
 pause
 goto :menu
 

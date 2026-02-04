@@ -971,6 +971,15 @@ class Installer:
             if project_dir not in sys.path:
                 sys.path.insert(0, project_dir)
 
+            # 检查必要文件是否存在
+            if not os.path.exists(os.path.join(project_dir, "updater.py")):
+                print_info("跳过更新检查（updater.py 不存在）")
+                return
+
+            if not os.path.exists(os.path.join(project_dir, "version.py")):
+                print_info("跳过更新检查（version.py 不存在）")
+                return
+
             from updater import check_update, prompt_update
             from version import __version__
 
@@ -998,11 +1007,14 @@ class Installer:
                 print_success("已是最新版本")
                 print()
         except ImportError as e:
-            # updater 模块不存在（可能是首次安装）
-            print_warning(f"跳过更新检查: {e}")
+            # 缺少依赖（如 requests），可能是首次安装
+            print_warning(f"跳过更新检查（缺少依赖: {e}）")
+            print_info("如果是首次使用，请选择 1. 一键安装")
+            print()
         except Exception as e:
             # 更新检测失败不影响正常使用
             print_warning(f"更新检查失败: {e}")
+            print()
 
     def main_menu(self):
         """主菜单"""

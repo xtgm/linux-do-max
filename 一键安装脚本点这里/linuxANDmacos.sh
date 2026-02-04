@@ -554,15 +554,30 @@ main_menu() {
 
 # 检查更新
 check_update_on_start() {
-    # 检查是否有 venv 和 updater.py
-    if [ ! -f "venv/bin/python" ] || [ ! -f "updater.py" ]; then
+    # 检查 updater.py 是否存在
+    if [ ! -f "updater.py" ]; then
+        return
+    fi
+
+    # 确定使用哪个 Python：优先 venv，否则系统 Python
+    PYTHON_CMD=""
+    if [ -f "venv/bin/python" ]; then
+        PYTHON_CMD="venv/bin/python"
+    elif command -v python3 &>/dev/null; then
+        PYTHON_CMD="python3"
+    elif command -v python &>/dev/null; then
+        PYTHON_CMD="python"
+    fi
+
+    if [ -z "$PYTHON_CMD" ]; then
+        print_info "未检测到 Python 环境，跳过更新检查"
         return
     fi
 
     print_info "检查更新中..."
 
     # 获取当前版本和最新版本
-    UPDATE_INFO=$(venv/bin/python -c "
+    UPDATE_INFO=$($PYTHON_CMD -c "
 from updater import check_update
 from version import __version__
 info = check_update(silent=True)
@@ -575,7 +590,9 @@ else:
 " 2>/dev/null)
 
     if [ $? -ne 0 ]; then
-        print_warning "更新检查失败"
+        print_warning "更新检查失败，可能缺少依赖"
+        print_info "如果是首次使用，请选择 1. 一键安装"
+        echo ""
         return
     fi
 
@@ -603,7 +620,7 @@ else:
 
     echo ""
     print_info "正在更新..."
-    venv/bin/python -c "from updater import prompt_update; prompt_update()"
+    $PYTHON_CMD -c "from updater import prompt_update; prompt_update()"
     echo ""
     print_warning "更新完成，请重新运行此脚本"
     read -p "按 Enter 键退出..."
@@ -612,11 +629,23 @@ else:
 
 # 手动检查更新
 manual_update() {
-    if [ ! -f "venv/bin/python" ]; then
-        print_error "请先运行一键安装配置 Python 环境"
+    # 确定使用哪个 Python
+    PYTHON_CMD=""
+    if [ -f "venv/bin/python" ]; then
+        PYTHON_CMD="venv/bin/python"
+    elif command -v python3 &>/dev/null; then
+        PYTHON_CMD="python3"
+    elif command -v python &>/dev/null; then
+        PYTHON_CMD="python"
+    fi
+
+    if [ -z "$PYTHON_CMD" ]; then
+        print_error "未检测到 Python 环境"
+        print_info "请先运行 1. 一键安装"
         return
     fi
-    venv/bin/python main.py --check-update
+
+    $PYTHON_CMD main.py --check-update
 }
 
 # 主入口
