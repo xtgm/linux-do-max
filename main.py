@@ -133,6 +133,24 @@ def first_login():
     print("\n浏览器已关闭")
 
 
+def is_interactive():
+    """检测是否为交互模式（有终端输入）"""
+    import sys
+    import os
+
+    # 检查是否有 TTY
+    if hasattr(sys.stdin, 'isatty') and sys.stdin.isatty():
+        return True
+
+    # Windows 任务计划、cron 等非交互环境
+    # 检查常见的非交互环境变量
+    if os.environ.get('TERM') is None and os.environ.get('SSH_TTY') is None:
+        # 可能是定时任务
+        pass
+
+    return False
+
+
 def main():
     """主函数"""
     parser = argparse.ArgumentParser(description="LinuxDO 自动签到工具")
@@ -163,8 +181,9 @@ def main():
         prompt_update()
         return 0
 
-    # 启动时检查更新（交互模式）
-    if not args.no_update_check:
+    # 启动时检查更新（仅交互模式）
+    # 定时任务等非交互环境跳过更新检查，避免阻塞
+    if not args.no_update_check and is_interactive():
         try:
             from updater import check_update, prompt_update
             update_info = check_update(silent=True)
