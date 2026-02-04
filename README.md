@@ -2267,6 +2267,43 @@ which chromium-browser || which chromium
 xvfb-run -a chromium-browser --version
 ```
 
+### Q15: 如何回退到指定版本？
+
+**A:** 使用 git checkout 切换到指定版本：
+
+```bash
+# 查看所有可用版本
+git tag -l
+
+# 回退到指定版本（例如 v0.3.8）
+git checkout v0.3.8
+
+# 回退后测试
+python main.py --first-login
+
+# 如果需要回到最新版本
+git checkout main
+git pull
+```
+
+**可用版本列表：**
+
+| 版本 | 说明 |
+|------|------|
+| v0.4.0 | 全平台浏览器支持重构 |
+| v0.3.8 | Ubuntu 浏览器安装优化 |
+| v0.3.7 | 定时任务兼容 |
+| v0.3.6 | 智能检测 Python 环境 |
+| v0.3.5 | 更新检查修复 |
+| v0.3.4 | 更新功能完善 |
+| v0.3.1 | Linux glibc 兼容性修复 |
+| v0.3.0 | Linux/ARM 浏览器启动修复 |
+| v0.2.0 | GitHub Actions 自动打包 |
+
+**二进制版本回退：**
+
+从 [Releases](https://github.com/xtgm/linux-do-max/releases) 页面下载指定版本的预编译二进制文件。
+
 ---
 
 ## 故障排除
