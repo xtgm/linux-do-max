@@ -92,25 +92,19 @@ detect_system() {
     GUI_DISPLAY="否"
     [ "$HAS_DISPLAY" = true ] && GUI_DISPLAY="有"
 
-    # 填充空格到固定宽度（22个英文字符）
-    pad22() {
-        local str="$1"
-        local len=${#str}
-        local spaces=$((22 - len))
-        [ $spaces -lt 0 ] && spaces=0
-        printf "%s%*s" "$str" $spaces ""
-    }
-
     echo ""
     echo "┌─────────────────────────────────────┐"
     echo "│        系统环境检测结果             │"
     echo "├─────────────────────────────────────┤"
-    echo "│ 操作系统   $(pad22 "$OS_NAME")│"
-    echo "│ 架构       $(pad22 "$ARCH ($ARCH_TYPE)")│"
-    [ -n "$DISTRO" ] && echo "│ 发行版     $(pad22 "$DISTRO")│"
-    [ -n "$PKG_MGR" ] && echo "│ 包管理器   $(pad22 "$PKG_MGR")│"
-    echo "│ ARM设备    $(pad22 "$ARM_DISPLAY")│"
-    echo "│ 图形界面   $(pad22 "$GUI_DISPLAY")│"
+
+    # 手动格式化每行，确保对齐（值部分用printf填充到20字符）
+    printf "│ 操作系统   %-20s  │\n" "$OS_NAME"
+    printf "│ 架构       %-20s  │\n" "$ARCH ($ARCH_TYPE)"
+    [ -n "$DISTRO" ] && printf "│ 发行版     %-20s  │\n" "$DISTRO"
+    [ -n "$PKG_MGR" ] && printf "│ 包管理器   %-20s  │\n" "$PKG_MGR"
+    printf "│ ARM设备    %-20s  │\n" "$ARM_DISPLAY"
+    printf "│ 图形界面   %-20s  │\n" "$GUI_DISPLAY"
+
     echo "└─────────────────────────────────────┘"
     echo ""
 }
