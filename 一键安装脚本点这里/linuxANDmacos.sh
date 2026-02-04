@@ -402,21 +402,31 @@ interactive_config() {
     read -p "用户数据目录 [$USER_DATA_DIR]: " INPUT_DIR
     USER_DATA_DIR=${INPUT_DIR:-$USER_DATA_DIR}
 
-    # 检测浏览器
+    # 检测浏览器（只使用 Google Chrome，不使用 Snap Chromium）
     BROWSER_PATH=""
-    for p in /usr/bin/chromium-browser /usr/bin/chromium /usr/lib/chromium/chromium \
-             /usr/lib/chromium-browser/chromium-browser /snap/bin/chromium \
-             /usr/bin/google-chrome /usr/bin/google-chrome-stable \
+    for p in /usr/bin/google-chrome /usr/bin/google-chrome-stable \
              "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"; do
         [ -x "$p" ] && BROWSER_PATH="$p" && break
     done
 
-    # 如果没找到，尝试 which 命令
+    # 如果没找到，尝试 which 命令（只找 google-chrome）
     if [ -z "$BROWSER_PATH" ]; then
-        for cmd in chromium-browser chromium google-chrome google-chrome-stable; do
+        for cmd in google-chrome google-chrome-stable; do
             p=$(which "$cmd" 2>/dev/null)
-            [ -n "$p" ] && [ -x "$p" ] && BROWSER_PATH="$p" && break
+            if [ -n "$p" ] && [ -x "$p" ]; then
+                # 排除 Snap 版本
+                real_path=$(readlink -f "$p" 2>/dev/null || echo "$p")
+                if ! echo "$real_path" | grep -q "snap"; then
+                    BROWSER_PATH="$p"
+                    break
+                fi
+            fi
         done
+    fi
+
+    if [ -z "$BROWSER_PATH" ]; then
+        print_error "未检测到 Google Chrome！"
+        print_info "请确保已安装 Google Chrome"
     fi
 
     # Linux 系统自动添加必要的 Chrome 参数

@@ -124,16 +124,16 @@ def first_login():
     print()
     print("正在启动浏览器...")
 
-    # 带重试的启动
+    # 带重试的启动（只重试1次）
     page = None
-    for attempt in range(3):
+    for attempt in range(2):
         try:
             page = ChromiumPage(co)
             print("[浏览器] 启动成功")
             break
         except Exception as e:
-            print(f"[浏览器] 启动失败 (尝试 {attempt + 1}/3): {e}")
-            if attempt < 2:
+            print(f"[浏览器] 启动失败 (尝试 {attempt + 1}/2): {e}")
+            if attempt < 1:
                 time.sleep(2)
                 if is_linux() or is_macos():
                     port = find_free_port()
@@ -145,10 +145,9 @@ def first_login():
         print("❌ 浏览器启动失败")
         print()
         print("可能的解决方案：")
-        print("1. 确保已安装 Chrome 或 Chromium 浏览器")
-        print("   Ubuntu/Debian: sudo apt install google-chrome-stable")
-        print("   Fedora/RHEL:   sudo dnf install chromium")
-        print("   Arch:          sudo pacman -S chromium")
+        print("1. 确保已安装 Google Chrome 浏览器")
+        print("   Ubuntu/Debian: 运行一键安装脚本自动安装")
+        print("   Fedora/RHEL:   sudo dnf install https://dl.google.com/linux/direct/google-chrome-stable_current_x86_64.rpm")
         print("   macOS:         brew install --cask google-chrome")
         print()
         print("2. 如果仍然失败，尝试在 config.yaml 中添加：")
