@@ -18,16 +18,16 @@ NC='\033[0m'
 
 print_banner() {
     echo ""
-    echo -e "${CYAN}╔════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}║${NC}       ${GREEN}LinuxDO Check-in Installer v${VERSION}${NC}              ${CYAN}║${NC}"
-    echo -e "${CYAN}╚════════════════════════════════════════════════════════════╝${NC}"
+    echo -e "${CYAN}╔══════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}║${NC}        ${GREEN}LinuxDO 签到一键安装脚本 v${VERSION}${NC}               ${CYAN}║${NC}"
+    echo -e "${CYAN}╚══════════════════════════════════════════════════════════╝${NC}"
     echo ""
 }
 
-print_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
-print_success() { echo -e "${GREEN}[OK]${NC} $1"; }
-print_warning() { echo -e "${YELLOW}[WARN]${NC} $1"; }
-print_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+print_info() { echo -e "${BLUE}[信息]${NC} $1"; }
+print_success() { echo -e "${GREEN}[成功]${NC} $1"; }
+print_warning() { echo -e "${YELLOW}[警告]${NC} $1"; }
+print_error() { echo -e "${RED}[错误]${NC} $1"; }
 
 # 自动切换到项目根目录
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -85,32 +85,30 @@ detect_system() {
     [ -f /proc/device-tree/model ] && grep -q "Raspberry Pi" /proc/device-tree/model 2>/dev/null && IS_RPI=true
 
     # ARM 设备显示
-    ARM_DISPLAY="No"
-    [ "$IS_ARM" = true ] && ARM_DISPLAY="Yes"
+    ARM_DISPLAY="否"
+    [ "$IS_ARM" = true ] && ARM_DISPLAY="是"
 
     # 图形界面显示
-    GUI_DISPLAY="No"
-    [ "$HAS_DISPLAY" = true ] && GUI_DISPLAY="Yes"
+    GUI_DISPLAY="无"
+    [ "$HAS_DISPLAY" = true ] && GUI_DISPLAY="有"
 
     echo ""
-    echo "┌────────────────────────────────────────────────┐"
-    echo "│             系统环境检测结果                   │"
-    echo "├────────────────────────────────────────────────┤"
-    echo "│  OS            │  $(printf '%-27s' "$OS_NAME")│"
-    echo "│  Arch          │  $(printf '%-27s' "$ARCH ($ARCH_TYPE)")│"
-    [ -n "$DISTRO" ] && \
-    echo "│  Distro        │  $(printf '%-27s' "$DISTRO")│"
-    [ -n "$PKG_MGR" ] && \
-    echo "│  Package Mgr   │  $(printf '%-27s' "$PKG_MGR")│"
-    echo "│  ARM Device    │  $(printf '%-27s' "$ARM_DISPLAY")│"
-    echo "│  GUI Display   │  $(printf '%-27s' "$GUI_DISPLAY")│"
-    echo "└────────────────────────────────────────────────┘"
+    echo "┌─────────────────────────────────────┐"
+    echo "│        系统环境检测结果             │"
+    echo "├─────────────────────────────────────┤"
+    printf "│ %-12s %-22s│\n" "操作系统" "$OS_NAME"
+    printf "│ %-12s %-22s│\n" "架构" "$ARCH ($ARCH_TYPE)"
+    [ -n "$DISTRO" ] && printf "│ %-12s %-22s│\n" "发行版" "$DISTRO"
+    [ -n "$PKG_MGR" ] && printf "│ %-12s %-22s│\n" "包管理器" "$PKG_MGR"
+    printf "│ %-12s %-22s│\n" "ARM设备" "$ARM_DISPLAY"
+    printf "│ %-12s %-22s│\n" "图形界面" "$GUI_DISPLAY"
+    echo "└─────────────────────────────────────┘"
     echo ""
 }
 
 # 安装依赖
 install_deps() {
-    print_info "Installing system dependencies..."
+    print_info "安装系统依赖..."
 
     case "$PKG_MGR" in
         apt)
@@ -125,14 +123,14 @@ install_deps() {
             # 强制安装 Google Chrome（Snap 版 Chromium 有沙箱限制，无法使用）
             # 只有检测到 google-chrome 才跳过
             if command -v google-chrome &>/dev/null || command -v google-chrome-stable &>/dev/null; then
-                print_info "Google Chrome detected, skipping install"
+                print_info "检测到 Google Chrome，跳过安装"
             else
-                print_info "Installing Google Chrome (required, Snap Chromium not supported)..."
+                print_info "安装 Google Chrome（必需，Snap 版 Chromium 不支持）..."
                 TEMP_DEB="/tmp/google-chrome.deb"
 
                 # 根据架构选择下载链接
                 if [ "$ARCH_TYPE" = "arm64" ]; then
-                    print_warning "Google Chrome not available for ARM64, trying Chromium..."
+                    print_warning "ARM64 架构暂不支持 Google Chrome，尝试安装 Chromium..."
                     sudo apt-get install -y chromium-browser 2>/dev/null || \
                     sudo apt-get install -y chromium 2>/dev/null || true
                 else
@@ -145,15 +143,14 @@ install_deps() {
 
                         # 验证安装
                         if command -v google-chrome &>/dev/null; then
-                            print_success "Google Chrome installed successfully"
+                            print_success "Google Chrome 安装成功"
                         else
-                            print_error "Google Chrome installation failed!"
-                            print_info "Please install manually: wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && sudo dpkg -i google-chrome-stable_current_amd64.deb"
+                            print_error "Google Chrome 安装失败！"
+                            print_info "请手动安装: wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && sudo dpkg -i google-chrome-stable_current_amd64.deb"
                         fi
                     else
-                        print_error "Failed to download Google Chrome"
-                        print_info "Please check your network connection or proxy settings"
-                        print_info "Manual install: wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && sudo dpkg -i google-chrome-stable_current_amd64.deb"
+                        print_error "Google Chrome 下载失败"
+                        print_info "请检查网络连接或代理设置"
                     fi
                 fi
             fi
@@ -164,7 +161,7 @@ install_deps() {
             sudo dnf install -y python3 python3-pip python3-virtualenv python3-devel || true
             # Fedora/RHEL: 安装 Google Chrome
             if ! command -v google-chrome &>/dev/null; then
-                print_info "Installing Google Chrome..."
+                print_info "安装 Google Chrome..."
                 sudo dnf install -y https://dl.google.com/linux/direct/google-chrome-stable_current_x86_64.rpm 2>/dev/null || \
                 sudo dnf install -y chromium 2>/dev/null || true
             fi
@@ -175,7 +172,7 @@ install_deps() {
             sudo yum install -y python3 python3-pip python3-virtualenv python3-devel || true
             # CentOS/RHEL: 安装 Google Chrome
             if ! command -v google-chrome &>/dev/null; then
-                print_info "Installing Google Chrome..."
+                print_info "安装 Google Chrome..."
                 sudo yum install -y https://dl.google.com/linux/direct/google-chrome-stable_current_x86_64.rpm 2>/dev/null || \
                 sudo yum install -y chromium 2>/dev/null || true
             fi
@@ -198,7 +195,7 @@ install_deps() {
             sudo zypper install -y python3 python3-pip python3-virtualenv python3-devel || true
             # openSUSE: 安装 Google Chrome
             if ! command -v google-chrome &>/dev/null; then
-                print_info "Installing Google Chrome..."
+                print_info "安装 Google Chrome..."
                 sudo zypper install -y https://dl.google.com/linux/direct/google-chrome-stable_current_x86_64.rpm 2>/dev/null || \
                 sudo zypper install -y chromium 2>/dev/null || true
             fi
@@ -209,22 +206,22 @@ install_deps() {
             brew install python3 || true
             # macOS: 检查并安装 Chrome
             if [ ! -d "/Applications/Google Chrome.app" ]; then
-                print_info "Installing Google Chrome..."
+                print_info "安装 Google Chrome..."
                 brew install --cask google-chrome 2>/dev/null || \
-                print_warning "Please install Chrome manually: https://www.google.com/chrome/"
+                print_warning "请手动安装 Chrome: https://www.google.com/chrome/"
             fi
             ;;
         *)
-            print_warning "Unknown package manager. Please install: Python3, pip, venv, Google Chrome, Xvfb"
+            print_warning "未知包管理器，请手动安装: Python3, pip, venv, Google Chrome, Xvfb"
             ;;
     esac
 
-    print_success "System dependencies installed"
+    print_success "系统依赖安装完成"
 }
 
 # Python 环境
 setup_python() {
-    print_info "Setting up Python environment..."
+    print_info "配置 Python 环境..."
 
     [ ! -d "venv" ] && python3 -m venv venv
 
@@ -232,29 +229,29 @@ setup_python() {
     pip install --upgrade pip
     pip install -r requirements.txt
 
-    print_success "Python environment ready"
+    print_success "Python 环境配置完成"
 }
 
 # 交互式配置
 interactive_config() {
-    print_info "Configuration wizard..."
+    print_info "配置向导..."
     echo ""
 
     if [ -f "config.yaml" ]; then
-        echo -e "${YELLOW}Existing config file detected${NC}"
-        read -p "Reconfigure? [y/N]: " RECONFIG
+        echo -e "${YELLOW}检测到已有配置文件${NC}"
+        read -p "是否重新配置？[y/N]: " RECONFIG
         [ "$RECONFIG" != "y" ] && [ "$RECONFIG" != "Y" ] && return
     fi
 
     echo ""
-    echo "=== Basic Settings ==="
-    read -p "Linux.do username (optional, press Enter to skip): " USERNAME
-    [ -n "$USERNAME" ] && read -p "Linux.do password (optional): " PASSWORD
+    echo "=== 基本配置 ==="
+    read -p "Linux.do 用户名 (可选，按 Enter 跳过): " USERNAME
+    [ -n "$USERNAME" ] && read -p "Linux.do 密码 (可选): " PASSWORD
 
-    read -p "Number of posts to browse [10]: " BROWSE_COUNT
+    read -p "浏览帖子数量 [10]: " BROWSE_COUNT
     BROWSE_COUNT=${BROWSE_COUNT:-10}
 
-    read -p "Like probability (0-1) [0.3]: " LIKE_PROB
+    read -p "点赞概率 (0-1) [0.3]: " LIKE_PROB
     LIKE_PROB=${LIKE_PROB:-0.3}
 
     if [ "$HAS_DISPLAY" = true ]; then
@@ -262,16 +259,16 @@ interactive_config() {
     else
         HEADLESS_DEFAULT="true"
     fi
-    read -p "Headless mode (true/false) [$HEADLESS_DEFAULT]: " HEADLESS
+    read -p "无头模式 (true/false) [$HEADLESS_DEFAULT]: " HEADLESS
     HEADLESS=${HEADLESS:-$HEADLESS_DEFAULT}
 
     echo ""
-    echo "=== Telegram Notification (optional) ==="
-    read -p "Bot Token (press Enter to skip): " TG_TOKEN
+    echo "=== Telegram 通知 (可选) ==="
+    read -p "Bot Token (按 Enter 跳过): " TG_TOKEN
     [ -n "$TG_TOKEN" ] && read -p "Chat ID: " TG_CHAT_ID
 
     USER_DATA_DIR="$HOME/.linuxdo-browser"
-    read -p "User data directory [$USER_DATA_DIR]: " INPUT_DIR
+    read -p "用户数据目录 [$USER_DATA_DIR]: " INPUT_DIR
     USER_DATA_DIR=${INPUT_DIR:-$USER_DATA_DIR}
 
     # 检测浏览器
@@ -300,18 +297,17 @@ interactive_config() {
     fi
 
     if [ "$OS_NAME" = "Linux" ]; then
-        # Linux 系统通常需要这些参数才能正常启动浏览器
-        print_info "Linux: Adding browser compatibility args"
+        print_info "Linux 系统将自动添加浏览器兼容参数"
         if [ "$IS_CONTAINER" = true ]; then
-            print_warning "Container environment detected"
+            print_warning "检测到容器环境"
         fi
         CHROME_ARGS_LIST="--no-sandbox,--disable-dev-shm-usage,--disable-gpu"
     fi
 
     # 生成配置
     cat > config.yaml << EOF
-# LinuxDO Check-in Configuration
-# Auto-generated by installer
+# LinuxDO 签到配置文件
+# 由一键安装脚本自动生成
 
 username: "$USERNAME"
 password: "$PASSWORD"
@@ -325,8 +321,7 @@ browse_interval_max: 30
 tg_bot_token: "$TG_TOKEN"
 tg_chat_id: "$TG_CHAT_ID"
 
-# Chrome extra args
-# Linux auto-adds --no-sandbox etc.
+# Chrome 额外启动参数
 chrome_args:
 $(if [ -n "$CHROME_ARGS_LIST" ]; then
     echo "$CHROME_ARGS_LIST" | tr ',' '\n' | while read arg; do
@@ -338,23 +333,23 @@ fi)
 EOF
 
     mkdir -p "$USER_DATA_DIR"
-    print_success "Config saved: config.yaml"
+    print_success "配置已保存: config.yaml"
 }
 
 # 设置定时任务
 setup_cron() {
-    read -p "Setup scheduled task? [y/N]: " SETUP
+    read -p "是否设置定时任务？[y/N]: " SETUP
     [ "$SETUP" != "y" ] && [ "$SETUP" != "Y" ] && return
 
     PROJECT_DIR=$(pwd)
     PYTHON_PATH="$PROJECT_DIR/venv/bin/python"
 
     echo ""
-    echo "Select check-in time:"
-    echo "  1. Daily 8:00 and 20:00 (Recommended)"
-    echo "  2. Daily 9:00"
-    echo "  3. Custom time"
-    read -p "Select [1-3]: " time_choice
+    echo "选择签到时间:"
+    echo "  1. 每天 8:00 和 20:00（推荐）"
+    echo "  2. 每天 9:00"
+    echo "  3. 自定义时间"
+    read -p "请选择 [1-3]: " time_choice
 
     if [ "$OS_NAME" = "macOS" ]; then
         # macOS launchd
@@ -397,7 +392,7 @@ EOF
 EOF
                 ;;
             3)
-                read -p "Enter time (format HH:MM, e.g. 08:00): " custom_time
+                read -p "输入时间 (格式 HH:MM，如 08:00): " custom_time
                 HOUR=$(echo "$custom_time" | cut -d: -f1 | sed 's/^0//')
                 MINUTE=$(echo "$custom_time" | cut -d: -f2 | sed 's/^0//')
                 cat > "$PLIST" << EOF
@@ -419,9 +414,9 @@ EOF
 
         launchctl unload "$PLIST" 2>/dev/null || true
         launchctl load "$PLIST"
-        print_success "macOS scheduled task configured"
-        echo "[Tip] View task: launchctl list | grep linuxdo"
-        echo "[Tip] Remove task: launchctl unload $PLIST"
+        print_success "macOS 定时任务已设置"
+        echo "[提示] 查看任务: launchctl list | grep linuxdo"
+        echo "[提示] 删除任务: launchctl unload $PLIST"
     else
         # Linux cron
         mkdir -p "$PROJECT_DIR/logs"
@@ -430,82 +425,80 @@ EOF
         crontab -l 2>/dev/null | grep -v "linuxdo" | grep -v "LinuxDO" > /tmp/crontab.tmp || true
 
         # 构建 cron 命令
-        # 有图形界面：设置 DISPLAY 环境变量
-        # 无图形界面：使用 xvfb-run
         if [ "$HAS_DISPLAY" = true ]; then
             DISPLAY_VAR="${DISPLAY:-:0}"
             CRON_CMD="DISPLAY=$DISPLAY_VAR $PYTHON_PATH main.py >> logs/checkin.log 2>&1"
-            print_info "GUI detected (DISPLAY=$DISPLAY_VAR), will run browser directly"
+            print_info "检测到图形界面 (DISPLAY=$DISPLAY_VAR)，将直接运行浏览器"
         else
             if command -v xvfb-run &>/dev/null; then
                 CRON_CMD="xvfb-run -a $PYTHON_PATH main.py >> logs/checkin.log 2>&1"
-                print_info "No GUI, will use xvfb-run"
+                print_info "无图形界面，将使用 xvfb-run 运行"
             else
                 CRON_CMD="$PYTHON_PATH main.py >> logs/checkin.log 2>&1"
-                print_warning "xvfb-run not found, set headless: true in config.yaml"
+                print_warning "未安装 xvfb-run，建议在 config.yaml 中设置 headless: true"
             fi
         fi
 
         case $time_choice in
             1)
-                echo "# LinuxDO Check-in - 08:00" >> /tmp/crontab.tmp
+                echo "# LinuxDO签到 - 08:00" >> /tmp/crontab.tmp
                 echo "0 8 * * * cd $PROJECT_DIR && $CRON_CMD" >> /tmp/crontab.tmp
-                echo "# LinuxDO Check-in - 20:00" >> /tmp/crontab.tmp
+                echo "# LinuxDO签到 - 20:00" >> /tmp/crontab.tmp
                 echo "0 20 * * * cd $PROJECT_DIR && $CRON_CMD" >> /tmp/crontab.tmp
                 ;;
             2)
-                echo "# LinuxDO Check-in - 09:00" >> /tmp/crontab.tmp
+                echo "# LinuxDO签到 - 09:00" >> /tmp/crontab.tmp
                 echo "0 9 * * * cd $PROJECT_DIR && $CRON_CMD" >> /tmp/crontab.tmp
                 ;;
             3)
-                read -p "Enter time (format HH:MM, e.g. 08:00): " custom_time
+                read -p "输入时间 (格式 HH:MM，如 08:00): " custom_time
                 HOUR=$(echo "$custom_time" | cut -d: -f1 | sed 's/^0//')
                 MINUTE=$(echo "$custom_time" | cut -d: -f2 | sed 's/^0//')
-                echo "# LinuxDO Check-in - $custom_time" >> /tmp/crontab.tmp
+                echo "# LinuxDO签到 - $custom_time" >> /tmp/crontab.tmp
                 echo "$MINUTE $HOUR * * * cd $PROJECT_DIR && $CRON_CMD" >> /tmp/crontab.tmp
                 ;;
         esac
 
         crontab /tmp/crontab.tmp
         rm /tmp/crontab.tmp
-        print_success "Linux cron task configured"
-        echo "[Tip] View tasks: crontab -l"
-        echo "[Tip] Edit tasks: crontab -e"
+        print_success "Linux 定时任务已设置"
+        echo "[提示] 查看任务: crontab -l"
+        echo "[提示] 编辑任务: crontab -e"
     fi
 }
 
 # 首次登录
 first_login() {
     if [ "$HAS_DISPLAY" = false ]; then
-        print_warning "No GUI detected"
+        print_warning "未检测到图形界面"
         echo ""
-        echo "First login requires GUI. Choose one of the following:"
+        echo "首次登录需要图形界面，请选择以下方式之一："
         echo ""
-        echo "  Option 1: VNC Remote Desktop"
+        echo "  方式1: VNC 远程桌面"
         echo "    sudo apt install tigervnc-standalone-server"
         echo "    vncserver :1"
         echo "    export DISPLAY=:1"
         echo ""
-        echo "  Option 2: SSH X11 Forwarding"
+        echo "  方式2: SSH X11 转发"
         echo "    ssh -X user@host"
         echo "    export DISPLAY=localhost:10.0"
         echo ""
-        echo "  Option 3: Complete first login on another computer"
-        echo "    1) Run on a computer with GUI: python main.py --first-login"
-        echo "    2) Copy ~/.linuxdo-browser directory to this machine"
-        echo "    3) Set headless: true and run check-in"
+        echo "  方式3: 在其他电脑完成首次登录"
+        echo "    1) 在有图形界面的电脑上运行: python main.py --first-login"
+        echo "    2) 将 ~/.linuxdo-browser 目录复制到本机相同位置"
+        echo "    3) 设置 headless: true 后运行签到"
         echo ""
-        read -p "Press Enter to continue..."
+        read -p "按 Enter 继续..."
         return
     fi
 
-    read -p "Run first login now? [Y/n]: " DO_LOGIN
+    read -p "是否现在进行首次登录？[Y/n]: " DO_LOGIN
     [ "$DO_LOGIN" = "n" ] || [ "$DO_LOGIN" = "N" ] && return
 
     echo ""
-    print_info "Starting browser for first login..."
-    echo "[Tip] Please login to Linux.do in the browser"
-    echo "[Tip] Close the browser after successful login"
+    print_info "启动浏览器进行首次登录..."
+    echo "[提示] 请在浏览器中登录 Linux.do 账号"
+    echo "[提示] 登录成功后关闭浏览器即可"
     echo ""
 
     source venv/bin/activate
@@ -515,13 +508,13 @@ first_login() {
 # 编辑配置
 edit_config() {
     if [ ! -f "config.yaml" ]; then
-        print_warning "Config file not found. Please run Full Install first"
+        print_warning "配置文件不存在，请先运行一键安装"
         return
     fi
 
     while true; do
         echo ""
-        echo "Current configuration:"
+        echo "当前配置:"
         grep -E "^(username|password|headless|browse_count|like_probability|tg_bot_token|tg_chat_id):" config.yaml | while read line; do
             key=$(echo "$line" | cut -d: -f1)
             val=$(echo "$line" | cut -d: -f2- | sed 's/^ *//' | sed 's/"//g')
@@ -532,26 +525,26 @@ edit_config() {
             printf "  %-20s: %s\n" "$key" "$val"
         done
         echo ""
-        echo "  1. Edit username     5. Edit browse count"
-        echo "  2. Edit password     6. Edit like probability"
-        echo "  3. Edit headless     7. Edit TG Token"
-        echo "  4. Edit browser      8. Edit TG Chat ID"
-        echo "  0. Back"
+        echo "  1. 修改用户名    5. 修改浏览数量"
+        echo "  2. 修改密码      6. 修改点赞概率"
+        echo "  3. 修改无头模式  7. 修改TG Token"
+        echo "  4. 修改浏览器    8. 修改TG Chat ID"
+        echo "  0. 返回"
         echo ""
-        read -p "Select [0-8]: " opt
+        read -p "请选择 [0-8]: " opt
 
         case $opt in
             0) break ;;
-            1) read -p "Username: " val; sed -i "s/^username:.*/username: \"$val\"/" config.yaml ;;
-            2) read -p "Password: " val; sed -i "s/^password:.*/password: \"$val\"/" config.yaml ;;
-            3) read -p "Headless (true/false): " val; sed -i "s/^headless:.*/headless: $val/" config.yaml ;;
-            4) read -p "Browser path: " val; sed -i "s|^browser_path:.*|browser_path: \"$val\"|" config.yaml ;;
-            5) read -p "Browse count: " val; sed -i "s/^browse_count:.*/browse_count: $val/" config.yaml ;;
-            6) read -p "Like probability: " val; sed -i "s/^like_probability:.*/like_probability: $val/" config.yaml ;;
+            1) read -p "用户名: " val; sed -i "s/^username:.*/username: \"$val\"/" config.yaml ;;
+            2) read -p "密码: " val; sed -i "s/^password:.*/password: \"$val\"/" config.yaml ;;
+            3) read -p "无头模式 (true/false): " val; sed -i "s/^headless:.*/headless: $val/" config.yaml ;;
+            4) read -p "浏览器路径: " val; sed -i "s|^browser_path:.*|browser_path: \"$val\"|" config.yaml ;;
+            5) read -p "浏览数量: " val; sed -i "s/^browse_count:.*/browse_count: $val/" config.yaml ;;
+            6) read -p "点赞概率: " val; sed -i "s/^like_probability:.*/like_probability: $val/" config.yaml ;;
             7) read -p "TG Token: " val; sed -i "s/^tg_bot_token:.*/tg_bot_token: \"$val\"/" config.yaml ;;
             8) read -p "TG Chat ID: " val; sed -i "s/^tg_chat_id:.*/tg_chat_id: \"$val\"/" config.yaml ;;
         esac
-        [ "$opt" != "0" ] && print_success "Config updated"
+        [ "$opt" != "0" ] && print_success "配置已更新"
     done
 }
 
@@ -570,15 +563,15 @@ run_checkin() {
 # 完成提示
 print_completion() {
     echo ""
-    echo -e "${GREEN}╔════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${GREEN}║                  Installation Complete!                    ║${NC}"
-    echo -e "${GREEN}╚════════════════════════════════════════════════════════════╝${NC}"
+    echo -e "${GREEN}╔══════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${GREEN}║                      安装完成！                          ║${NC}"
+    echo -e "${GREEN}╚══════════════════════════════════════════════════════════╝${NC}"
     echo ""
-    echo "Next steps:"
-    echo "  1. First login: ./venv/bin/python main.py --first-login"
-    echo "  2. Run check-in: ./venv/bin/python main.py"
-    echo "  3. Edit config: ./install.sh select 4"
-    echo "  4. View logs: tail -f logs/checkin.log"
+    echo "后续操作:"
+    echo "  1. 首次登录: ./venv/bin/python main.py --first-login"
+    echo "  2. 运行签到: ./venv/bin/python main.py"
+    echo "  3. 编辑配置: 运行脚本选择 4"
+    echo "  4. 查看日志: tail -f logs/checkin.log"
     echo ""
 }
 
@@ -586,22 +579,22 @@ print_completion() {
 main_menu() {
     while true; do
         echo ""
-        echo "┌────────────────────────────────────────────────┐"
-        echo "│                  Main Menu                     │"
-        echo "├────────────────────────────────────────────────┤"
-        echo "│  1. Full Install (Recommended)                 │"
-        echo "│  2. Install Dependencies Only                  │"
-        echo "│  3. Setup Python Environment Only              │"
-        echo "│  4. Edit Configuration                         │"
-        echo "│  5. Setup Scheduled Task                       │"
-        echo "│  6. First Login                                │"
-        echo "│  7. Run Check-in                               │"
-        echo "│  8. View System Info                           │"
-        echo "│  9. Check for Updates                          │"
-        echo "│  0. Exit                                       │"
-        echo "└────────────────────────────────────────────────┘"
+        echo "┌─────────────────────────────────────┐"
+        echo "│              主菜单                 │"
+        echo "├─────────────────────────────────────┤"
+        echo "│  1. 一键安装（推荐）                │"
+        echo "│  2. 仅安装依赖                      │"
+        echo "│  3. 仅配置 Python 环境              │"
+        echo "│  4. 编辑配置文件                    │"
+        echo "│  5. 设置定时任务                    │"
+        echo "│  6. 首次登录                        │"
+        echo "│  7. 运行签到                        │"
+        echo "│  8. 查看系统信息                    │"
+        echo "│  9. 检查更新                        │"
+        echo "│  0. 退出                            │"
+        echo "└─────────────────────────────────────┘"
         echo ""
-        read -p "Select [0-9]: " choice
+        read -p "请选择 [0-9]: " choice
 
         case $choice in
             0) exit 0 ;;
@@ -614,19 +607,17 @@ main_menu() {
             7) run_checkin ;;
             8) detect_system ;;
             9) manual_update ;;
-            *) print_error "Invalid option" ;;
+            *) print_error "无效选项" ;;
         esac
     done
 }
 
 # 检查更新
 check_update_on_start() {
-    # 检查 updater.py 是否存在
     if [ ! -f "updater.py" ]; then
         return
     fi
 
-    # 确定使用哪个 Python：优先 venv，否则系统 Python
     PYTHON_CMD=""
     if [ -f "venv/bin/python" ]; then
         PYTHON_CMD="venv/bin/python"
@@ -637,13 +628,12 @@ check_update_on_start() {
     fi
 
     if [ -z "$PYTHON_CMD" ]; then
-        print_info "Python not found, skipping update check"
+        print_info "未检测到 Python 环境，跳过更新检查"
         return
     fi
 
-    print_info "Checking for updates..."
+    print_info "检查更新中..."
 
-    # 获取当前版本和最新版本
     UPDATE_INFO=$($PYTHON_CMD -c "
 from updater import check_update
 from version import __version__
@@ -657,8 +647,8 @@ else:
 " 2>/dev/null)
 
     if [ $? -ne 0 ]; then
-        print_warning "Update check failed, dependencies may be missing"
-        print_info "If this is first use, select 1. Full Install"
+        print_warning "更新检查失败，可能缺少依赖"
+        print_info "如果是首次使用，请选择 1. 一键安装"
         echo ""
         return
     fi
@@ -667,36 +657,35 @@ else:
     LATEST_VER=$(echo "$UPDATE_INFO" | grep "LATEST=" | cut -d= -f2)
 
     if [ "$LATEST_VER" = "NONE" ]; then
-        print_success "Current version v$CURRENT_VER is up to date"
+        print_success "当前版本 v$CURRENT_VER 已是最新"
         echo ""
         return
     fi
 
     echo ""
-    echo -e "${YELLOW}╔════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${YELLOW}║${NC}  New version available: v$LATEST_VER  (current: v$CURRENT_VER)"
-    echo -e "${YELLOW}╚════════════════════════════════════════════════════════════╝${NC}"
+    echo -e "${YELLOW}╔══════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${YELLOW}║${NC}  发现新版本: v$LATEST_VER  (当前: v$CURRENT_VER)"
+    echo -e "${YELLOW}╚══════════════════════════════════════════════════════════╝${NC}"
     echo ""
 
-    read -p "Update now? [Y/n]: " do_update
+    read -p "是否现在更新？[Y/n]: " do_update
     if [ "$do_update" = "n" ] || [ "$do_update" = "N" ]; then
-        print_info "Update skipped"
+        print_info "跳过更新"
         echo ""
         return
     fi
 
     echo ""
-    print_info "Updating..."
+    print_info "正在更新..."
     $PYTHON_CMD -c "from updater import prompt_update; prompt_update()"
     echo ""
-    print_warning "Update complete. Please restart this script"
-    read -p "Press Enter to exit..."
+    print_warning "更新完成，请重新运行此脚本"
+    read -p "按 Enter 键退出..."
     exit 0
 }
 
 # 手动检查更新
 manual_update() {
-    # 确定使用哪个 Python
     PYTHON_CMD=""
     if [ -f "venv/bin/python" ]; then
         PYTHON_CMD="venv/bin/python"
@@ -707,8 +696,8 @@ manual_update() {
     fi
 
     if [ -z "$PYTHON_CMD" ]; then
-        print_error "Python not found"
-        print_info "Please run 1. Full Install first"
+        print_error "未检测到 Python 环境"
+        print_info "请先运行 1. 一键安装"
         return
     fi
 
@@ -720,15 +709,12 @@ main() {
     print_banner
 
     if [ ! -f "main.py" ] && [ ! -f "requirements.txt" ]; then
-        print_error "Please run this script in the project directory"
+        print_error "请在项目目录下运行此脚本"
         exit 1
     fi
 
     detect_system
-
-    # 启动时检查更新
     check_update_on_start
-
     main_menu
 }
 
