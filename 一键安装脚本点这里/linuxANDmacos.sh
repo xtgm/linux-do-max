@@ -163,7 +163,7 @@ verify_browser_install() {
     return 0
 }
 
-# 测试浏览器启动
+# 测试浏览器启动（打开可见窗口）
 test_browser_launch() {
     print_info "测试浏览器启动..."
 
@@ -173,38 +173,36 @@ test_browser_launch() {
         return 1
     fi
 
-    # 构建测试参数
-    TEST_ARGS="--headless=new --disable-gpu --no-sandbox --disable-dev-shm-usage"
-    TEST_ARGS="$TEST_ARGS --dump-dom --timeout=10000"
-    TEST_URL="data:text/html,<html><body><h1>Browser Test OK</h1></body></html>"
+    print_info "即将打开浏览器窗口，请确认浏览器能正常显示..."
+    echo ""
 
-    print_info "启动浏览器进行测试..."
+    # 构建启动参数（有界面模式）
+    LAUNCH_ARGS="--no-sandbox --disable-dev-shm-usage --disable-gpu"
+    TEST_URL="data:text/html,<html><head><title>Chrome Test</title><style>body{font-family:Arial,sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:linear-gradient(135deg,%234CAF50,%2345a049);color:white;text-align:center;}</style></head><body><div><h1>Google Chrome 启动成功!</h1><p>浏览器工作正常，请关闭此窗口继续安装</p></div></body></html>"
 
-    # 使用 timeout 命令限制执行时间
-    if command -v timeout &>/dev/null; then
-        RESULT=$(timeout 15 "$BROWSER_PATH" $TEST_ARGS "$TEST_URL" 2>/dev/null)
-    else
-        RESULT=$("$BROWSER_PATH" $TEST_ARGS "$TEST_URL" 2>/dev/null &
-        PID=$!
-        sleep 10
-        kill $PID 2>/dev/null
-        wait $PID 2>/dev/null)
+    # 启动浏览器（后台运行）
+    "$BROWSER_PATH" $LAUNCH_ARGS "$TEST_URL" &
+    BROWSER_PID=$!
+
+    echo ""
+    print_info "浏览器已启动 (PID: $BROWSER_PID)"
+    print_info "如果看到绿色页面显示「Google Chrome 启动成功!」说明浏览器正常"
+    echo ""
+
+    read -p "浏览器是否正常显示？[Y/n]: " BROWSER_OK
+
+    # 关闭测试浏览器
+    kill $BROWSER_PID 2>/dev/null
+    wait $BROWSER_PID 2>/dev/null
+
+    if [ "$BROWSER_OK" = "n" ] || [ "$BROWSER_OK" = "N" ]; then
+        print_error "浏览器启动测试失败！"
+        print_info "请检查浏览器安装或图形界面配置"
+        return 1
     fi
 
-    # 检查结果
-    if echo "$RESULT" | grep -q "Browser Test OK"; then
-        print_success "浏览器启动测试通过！"
-        return 0
-    else
-        # 即使没有输出，只要没报错也算成功
-        if [ $? -eq 0 ] || [ $? -eq 124 ]; then
-            print_success "浏览器启动测试通过！"
-            return 0
-        else
-            print_warning "浏览器启动测试未能确认，但可能仍然可用"
-            return 0
-        fi
-    fi
+    print_success "浏览器启动测试通过！"
+    return 0
 }
 
 # 安装依赖

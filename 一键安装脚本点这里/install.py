@@ -318,40 +318,48 @@ class SystemInfo:
         return ""
 
     def test_browser_launch(self) -> bool:
-        """测试浏览器是否能正常启动"""
+        """测试浏览器是否能正常启动（打开可见窗口）"""
         if not self.browser_path:
             return False
 
         try:
-            # 使用 headless 模式测试
-            test_args = [
+            # 测试页面 HTML
+            test_url = "data:text/html,<html><head><title>Chrome Test</title><style>body{font-family:Arial,sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:linear-gradient(135deg,%234CAF50,%2345a049);color:white;text-align:center;}</style></head><body><div><h1>Google Chrome 启动成功!</h1><p>浏览器工作正常，请关闭此窗口继续安装</p></div></body></html>"
+
+            # 启动参数（有界面模式）
+            launch_args = [
                 self.browser_path,
-                "--headless=new",
-                "--disable-gpu",
                 "--no-sandbox",
                 "--disable-dev-shm-usage",
-                "--dump-dom",
-                "data:text/html,<html><body><h1>Browser Test OK</h1></body></html>"
+                "--disable-gpu",
+                test_url
             ]
 
-            result = subprocess.run(
-                test_args,
-                capture_output=True,
-                text=True,
-                timeout=15
+            # 启动浏览器（非阻塞）
+            process = subprocess.Popen(
+                launch_args,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
             )
 
-            # 检查输出是否包含测试内容
-            if "Browser Test OK" in result.stdout:
-                return True
+            print_info(f"浏览器已启动 (PID: {process.pid})")
+            print_info("如果看到绿色页面显示「Google Chrome 启动成功!」说明浏览器正常")
+            print()
 
-            # 即使没有输出，只要没报错也算成功
-            return result.returncode == 0
+            # 等待用户确认
+            choice = input("浏览器是否正常显示？[Y/n]: ").strip().lower()
 
-        except subprocess.TimeoutExpired:
-            # 超时也可能是正常的（某些系统）
-            return True
+            # 关闭测试浏览器
+            try:
+                process.terminate()
+                process.wait(timeout=5)
+            except:
+                process.kill()
+
+            return choice != 'n'
+
         except Exception as e:
+            print_error(f"启动浏览器失败: {e}")
             return False
 
     def print_info(self):
@@ -1286,13 +1294,19 @@ class Installer:
             if version:
                 print_info(f"浏览器版本: {version}")
 
-            # 测试浏览器启动
+            # 测试浏览器启动（打开可见窗口）
             print()
-            print_info("测试浏览器启动...")
+            print_info("即将打开浏览器窗口，请确认浏览器能正常显示...")
+            print()
+
             if self.sys_info.test_browser_launch():
                 print_success("浏览器启动测试通过！")
             else:
-                print_warning("浏览器启动测试未能确认，但可能仍然可用")
+                print_error("浏览器启动测试失败！")
+                print_info("请检查浏览器安装或图形界面配置")
+                choice = input("是否继续安装？[y/N]: ").strip().lower()
+                if choice not in ("y", "yes"):
+                    return
 
     def _interactive_config(self):
         """交互式配置"""
