@@ -23,12 +23,46 @@
 - [Telegram 通知](#telegram-通知)
 - [常见问题](#常见问题)
 - [故障排除](#故障排除)
+  - [问题 1：Linux 系统浏览器启动失败](#问题-1linux-系统浏览器启动失败)
+  - [问题 2：页面加载超时](#问题-2页面加载超时)
+  - [问题 2.1：Linux 虚拟机无法访问 GitHub](#问题-21linux-虚拟机无法访问-github)
+  - [问题 3：CF 验证循环](#问题-3cf-验证循环)
+  - [问题 4：Telegram 通知失败](#问题-4telegram-通知失败)
+  - [问题 5：青龙面板 DrissionPage 安装失败](#问题-5青龙面板-drissionpage-安装失败)
 - [项目结构](#项目结构)
 - [免责声明](#免责声明)
 
 ---
 
 ## 更新日志
+
+### v0.3.8 (2026-02-04) - 文档完善 + Ubuntu 浏览器安装优化
+
+**新增内容：** Linux 虚拟机代理配置指南
+
+| 改进项 | 说明 |
+|--------|------|
+| 故障排除 | 新增「问题 2.1：Linux 虚拟机无法访问 GitHub」 |
+| 常见问题 | 新增 Q8：Linux 虚拟机无法 git clone |
+| 快速开始 | 添加虚拟机用户代理配置提示 |
+| 方案C | 添加网络代理注意事项 |
+| 一键安装 | Linux 部分添加代理配置提示 |
+
+**代理配置内容：**
+- 终端代理（http_proxy/https_proxy）
+- Git 代理（git config）
+- APT 代理（/etc/apt/apt.conf.d/proxy.conf）
+- 系统级代理（图形界面设置）
+- v2rayN 局域网配置方法
+
+**Ubuntu 浏览器安装优化：**
+
+| 改进项 | 说明 |
+|--------|------|
+| 优先安装 Chrome | Ubuntu 22.04+ 的 chromium-browser 是 Snap 包，需要 snap store |
+| 避免 Snap 问题 | 直接下载 Google Chrome deb 包安装，无需 snap store |
+| 自动检测浏览器 | 已有浏览器时跳过安装 |
+| 回退机制 | Chrome 下载失败时尝试安装 Chromium |
 
 ### v0.3.7 (2026-02-04) - 定时任务兼容
 
@@ -404,6 +438,8 @@ python E:\linuxdo-checkin\一键安装脚本点这里\install.py
 
 ### Linux 系统（Ubuntu/Debian/CentOS/Fedora/Arch 等）
 
+> **虚拟机用户注意：** 如果无法访问 GitHub，需要先配置代理。参考 [问题 2.1：Linux 虚拟机无法访问 GitHub](#问题-21linux-虚拟机无法访问-github)
+
 #### 方式一：使用 linuxANDmacos.sh（推荐）
 
 ```bash
@@ -676,6 +712,8 @@ flowchart TD
 git clone https://github.com/你的用户名/linuxdo-checkin.git
 cd linuxdo-checkin
 ```
+
+> **Linux 虚拟机用户注意：** 如果 git clone 失败，可能需要配置代理。参考 [问题 2.1：Linux 虚拟机无法访问 GitHub](#问题-21linux-虚拟机无法访问-github)
 
 ### 第二步：安装依赖
 
@@ -983,6 +1021,7 @@ chmod +x scripts/setup_task_linux.sh
 1. **必须安装 Xvfb** - 无头服务器需要虚拟显示
 2. **首次登录需要图形界面** - 使用 VNC 或本地桌面
 3. **检查 Python 路径** - 确保 cron 能找到 Python
+4. **网络代理** - 如果是虚拟机且需要代理访问外网，参考 [问题 2.1：Linux 虚拟机无法访问 GitHub](#问题-21linux-虚拟机无法访问-github)
 
 #### 手动管理任务
 
@@ -2091,6 +2130,26 @@ vncserver -kill :1
 vncserver :1
 ```
 
+### Q8: Linux 虚拟机无法 git clone？
+
+**A:** VMware/VirtualBox 中的 Linux 虚拟机需要配置代理才能访问 GitHub：
+
+1. **获取宿主机 IP：**
+```bash
+ip route | grep default
+# 输出示例: default via 192.168.252.1 dev ens33
+```
+
+2. **配置 git 代理：**
+```bash
+git config --global http.proxy http://192.168.252.1:10808
+git config --global https.proxy http://192.168.252.1:10808
+```
+
+3. **宿主机代理软件需开启"允许局域网连接"**
+
+详细配置参考 [问题 2.1：Linux 虚拟机无法访问 GitHub](#问题-21linux-虚拟机无法访问-github)
+
 ### Q9: macOS 任务没有执行？
 
 **A:** 检查以下几点：
@@ -2267,6 +2326,84 @@ sudo mount -o remount,size=512M /dev/shm
 1. 检查网络连接
 2. 检查是否能正常访问 linux.do
 3. 尝试使用代理
+
+### 问题 2.1：Linux 虚拟机无法访问 GitHub
+
+**现象：** VMware/VirtualBox 中的 Linux 虚拟机无法 git clone 或访问 GitHub
+
+**原因：** 虚拟机需要配置宿主机代理才能访问外网
+
+**解决方法：**
+
+#### 前提条件
+- 宿主机运行代理软件（v2rayN/Clash 等），开启"允许局域网连接"
+- 获取宿主机 IP（通常是 `192.168.x.1`）
+
+```bash
+# 在 Linux 虚拟机中查看网关 IP
+ip route | grep default
+# 输出示例: default via 192.168.252.1 dev ens33
+# 192.168.252.1 就是宿主机 IP
+```
+
+#### 1. 终端代理（curl/wget/git）
+
+**临时生效：**
+```bash
+export http_proxy="http://192.168.252.1:10808"
+export https_proxy="http://192.168.252.1:10808"
+```
+
+**永久生效：**
+```bash
+echo 'export http_proxy="http://192.168.252.1:10808"' >> ~/.bashrc
+echo 'export https_proxy="http://192.168.252.1:10808"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+#### 2. Git 代理（GitHub 克隆）
+
+```bash
+git config --global http.proxy http://192.168.252.1:10808
+git config --global https.proxy http://192.168.252.1:10808
+```
+
+**取消代理：**
+```bash
+git config --global --unset http.proxy
+git config --global --unset https.proxy
+```
+
+#### 3. APT 代理（sudo apt install）
+
+```bash
+sudo nano /etc/apt/apt.conf.d/proxy.conf
+```
+
+添加内容：
+```
+Acquire::http::Proxy "http://192.168.252.1:10808/";
+Acquire::https::Proxy "http://192.168.252.1:10808/";
+```
+
+#### 4. 系统级代理（图形界面应用）
+
+Settings → Network → Network Proxy → Manual
+- HTTP 代理: `192.168.252.1` 端口 `10808`
+- HTTPS 代理: `192.168.252.1` 端口 `10808`
+- Socks 主机: `192.168.252.1` 端口 `10808`
+
+#### 故障排查
+
+**连接被拒绝：**
+1. 检查宿主机代理软件是否开启"允许局域网连接"
+2. 检查 Windows 防火墙入站规则，添加代理端口（如 10808）
+3. 确认 IP 地址正确（`ip route | grep default`）
+
+**v2rayN 配置局域网：**
+- 编辑 `guiConfigs/guiNConfig.json`
+- 在 `Inbound` 中添加 `"Listen": "0.0.0.0"`
+- 重启 v2rayN
 
 ### 问题 3：CF 验证循环
 

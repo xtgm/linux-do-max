@@ -569,11 +569,10 @@ class DependencyInstaller:
         pkg_manager = self.sys_info.pkg_manager
 
         if pkg_manager == "apt":
-            packages = [
+            # 基础包（不含浏览器）
+            base_packages = [
                 # Python 环境
                 "python3", "python3-pip", "python3-venv", "python3-dev",
-                # 浏览器
-                "chromium-browser", "chromium",
                 # 虚拟显示
                 "xvfb",
                 # 中文字体
@@ -582,12 +581,43 @@ class DependencyInstaller:
                 "libatk1.0-0", "libatk-bridge2.0-0", "libcups2",
                 "libdrm2", "libxkbcommon0", "libxcomposite1",
                 "libxdamage1", "libxfixes3", "libxrandr2",
-                "libgbm1", "libasound2"
+                "libgbm1", "libasound2",
+                # 下载工具
+                "wget", "curl"
             ]
             print_info("使用 apt 安装依赖...")
             self._run_cmd("sudo apt-get update")
-            for pkg in packages:
+            for pkg in base_packages:
                 self._run_cmd(f"sudo apt-get install -y {pkg}", ignore_error=True)
+
+            # 检查是否已有浏览器
+            has_browser = (
+                shutil.which("google-chrome") or
+                shutil.which("google-chrome-stable") or
+                (shutil.which("chromium") and not shutil.which("snap"))
+            )
+
+            if has_browser:
+                print_info("检测到浏览器，跳过浏览器安装")
+            else:
+                # Ubuntu 22.04+ 的 chromium-browser 是 Snap 包，需要访问 snap store
+                # 优先安装 Google Chrome（deb 包，无需 snap store）
+                print_info("安装 Google Chrome...")
+                chrome_deb = "/tmp/google-chrome.deb"
+                download_result = self._run_cmd(
+                    f'wget -q -O "{chrome_deb}" "https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb"',
+                    ignore_error=True
+                )
+                if download_result == 0:
+                    self._run_cmd(f'sudo dpkg -i "{chrome_deb}"', ignore_error=True)
+                    self._run_cmd("sudo apt-get install -f -y", ignore_error=True)
+                    self._run_cmd(f'rm -f "{chrome_deb}"', ignore_error=True)
+                    print_success("Google Chrome 安装完成")
+                else:
+                    # 下载失败，尝试安装 chromium（可能触发 Snap）
+                    print_warning("Google Chrome 下载失败，尝试安装 Chromium...")
+                    self._run_cmd("sudo apt-get install -y chromium-browser", ignore_error=True)
+
             # 刷新字体缓存
             self._run_cmd("fc-cache -fv", ignore_error=True)
 

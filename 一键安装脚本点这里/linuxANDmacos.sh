@@ -105,13 +105,35 @@ install_deps() {
     case "$PKG_MGR" in
         apt)
             sudo apt-get update
+            # 先安装基础依赖
             sudo apt-get install -y python3 python3-pip python3-venv python3-dev \
-                chromium-browser xvfb fonts-wqy-zenhei fonts-wqy-microhei \
+                xvfb fonts-wqy-zenhei fonts-wqy-microhei \
                 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 \
                 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 \
-                libxrandr2 libgbm1 libasound2 2>/dev/null || \
-            sudo apt-get install -y python3 python3-pip python3-venv python3-dev \
-                chromium xvfb fonts-wqy-zenhei fonts-wqy-microhei 2>/dev/null || true
+                libxrandr2 libgbm1 libasound2 wget curl 2>/dev/null || true
+
+            # 检查是否已有浏览器
+            if command -v google-chrome &>/dev/null || command -v google-chrome-stable &>/dev/null; then
+                print_info "检测到 Google Chrome，跳过浏览器安装"
+            elif command -v chromium &>/dev/null && ! command -v snap &>/dev/null; then
+                print_info "检测到 Chromium（非 Snap），跳过浏览器安装"
+            else
+                # Ubuntu 22.04+ 的 chromium-browser 是 Snap 包，需要访问 snap store
+                # 优先安装 Google Chrome（deb 包，无需 snap store）
+                print_info "安装 Google Chrome..."
+                TEMP_DEB="/tmp/google-chrome.deb"
+                if wget -q -O "$TEMP_DEB" "https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb" 2>/dev/null; then
+                    sudo dpkg -i "$TEMP_DEB" 2>/dev/null || true
+                    sudo apt-get install -f -y 2>/dev/null || true
+                    rm -f "$TEMP_DEB"
+                    print_success "Google Chrome 安装完成"
+                else
+                    # 下载失败，尝试安装 chromium（可能触发 Snap）
+                    print_warning "Google Chrome 下载失败，尝试安装 Chromium..."
+                    sudo apt-get install -y chromium-browser 2>/dev/null || \
+                    sudo apt-get install -y chromium 2>/dev/null || true
+                fi
+            fi
             # 刷新字体缓存
             fc-cache -fv 2>/dev/null || true
             ;;
