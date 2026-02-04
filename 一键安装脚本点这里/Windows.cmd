@@ -2,7 +2,7 @@
 chcp 65001 >nul 2>&1
 setlocal enabledelayedexpansion
 
-set "VERSION=1.2.0"
+set "VERSION=1.3.0"
 cd /d "%~dp0.."
 
 echo.
@@ -74,6 +74,12 @@ if not exist "main.py" (
     )
 )
 
+REM ============================================================
+REM 启动时检查更新
+REM ============================================================
+call :check_update
+if "%UPDATE_DONE%"=="1" goto :exit_script
+
 :menu
 echo.
 echo +--------------------------------------------+
@@ -85,11 +91,12 @@ echo ^|  3. 编辑配置文件                           ^|
 echo ^|  4. 设置定时任务                           ^|
 echo ^|  5. 首次登录                               ^|
 echo ^|  6. 运行签到                               ^|
+echo ^|  7. 检查更新                               ^|
 echo ^|  0. 退出                                   ^|
 echo +--------------------------------------------+
 echo.
 set "choice="
-set /p choice="请选择 [0-6]: "
+set /p choice="请选择 [0-7]: "
 
 if "%choice%"=="0" goto :exit_script
 if "%choice%"=="1" goto :full_install
@@ -98,7 +105,71 @@ if "%choice%"=="3" goto :edit_config
 if "%choice%"=="4" goto :setup_task
 if "%choice%"=="5" goto :first_login
 if "%choice%"=="6" goto :run_checkin
+if "%choice%"=="7" goto :manual_update
 echo [错误] 无效选项
+goto :menu
+
+:check_update
+set "UPDATE_DONE=0"
+REM 检查是否有 venv 和 updater.py
+if not exist "venv\Scripts\python.exe" goto :eof
+if not exist "updater.py" goto :eof
+
+echo [信息] 检查更新中...
+echo.
+
+REM 使用 Python 检查更新
+venv\Scripts\python.exe -c "from updater import check_update; from version import __version__; info = check_update(silent=True); print(f'CURRENT={__version__}'); print(f'LATEST={info[\"latest_version\"]}' if info else 'LATEST=NONE')" > "%TEMP%\update_check.txt" 2>nul
+
+if errorlevel 1 (
+    echo [警告] 更新检查失败
+    goto :eof
+)
+
+set "CURRENT_VER="
+set "LATEST_VER="
+for /f "tokens=1,2 delims==" %%a in (%TEMP%\update_check.txt) do (
+    if "%%a"=="CURRENT" set "CURRENT_VER=%%b"
+    if "%%a"=="LATEST" set "LATEST_VER=%%b"
+)
+del "%TEMP%\update_check.txt" 2>nul
+
+if "%LATEST_VER%"=="NONE" (
+    echo [成功] 当前版本 v%CURRENT_VER% 已是最新
+    echo.
+    goto :eof
+)
+
+echo ============================================================
+echo   发现新版本: v%LATEST_VER%  (当前: v%CURRENT_VER%)
+echo ============================================================
+echo.
+set "do_update="
+set /p do_update="是否现在更新？[Y/n]: "
+if /i "%do_update%"=="n" (
+    echo [信息] 跳过更新
+    echo.
+    goto :eof
+)
+
+echo.
+echo [信息] 正在更新...
+venv\Scripts\python.exe -c "from updater import prompt_update; prompt_update()"
+echo.
+echo [提示] 更新完成，请重新运行此脚本
+set "UPDATE_DONE=1"
+pause
+goto :eof
+
+:manual_update
+echo.
+if not exist "venv\Scripts\python.exe" (
+    echo [错误] 请先运行一键安装配置 Python 环境
+    pause
+    goto :menu
+)
+venv\Scripts\python.exe main.py --check-update
+pause
 goto :menu
 
 :full_install

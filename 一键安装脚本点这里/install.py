@@ -37,7 +37,7 @@ if sys.platform == "win32":
 # ============================================================
 # 版本信息
 # ============================================================
-VERSION = "1.2.0"
+VERSION = "1.3.0"
 SCRIPT_NAME = "LinuxDO 签到一键安装脚本"
 
 # ============================================================
@@ -953,11 +953,56 @@ class Installer:
                 print_info("cd /path/to/linuxdo-checkin && python install.py")
                 return
 
+        # 启动时检查更新
+        self._check_update_on_start()
+
         # 显示系统信息
         self.sys_info.print_info()
 
         # 显示主菜单
         self.main_menu()
+
+    def _check_update_on_start(self):
+        """启动时检查更新"""
+        try:
+            # 尝试导入 updater 模块
+            import sys
+            project_dir = os.getcwd()
+            if project_dir not in sys.path:
+                sys.path.insert(0, project_dir)
+
+            from updater import check_update, prompt_update
+            from version import __version__
+
+            print_info(f"当前版本: v{__version__}")
+            print_info("检查更新中...")
+
+            update_info = check_update(silent=True)
+            if update_info:
+                print()
+                print(f"{Colors.YELLOW}╔════════════════════════════════════════════════════════════╗{Colors.NC}")
+                print(f"{Colors.YELLOW}║{Colors.NC}  发现新版本: v{update_info['latest_version']:<44} {Colors.YELLOW}║{Colors.NC}")
+                print(f"{Colors.YELLOW}╚════════════════════════════════════════════════════════════╝{Colors.NC}")
+                print()
+
+                choice = input("是否现在更新？[Y/n]: ").strip().lower()
+                if choice != 'n':
+                    # 调用更新函数
+                    prompt_update()
+                    print()
+                    print_warning("更新完成后请重新运行此脚本")
+                    input("按 Enter 键退出...")
+                    sys.exit(0)
+                print()
+            else:
+                print_success("已是最新版本")
+                print()
+        except ImportError as e:
+            # updater 模块不存在（可能是首次安装）
+            print_warning(f"跳过更新检查: {e}")
+        except Exception as e:
+            # 更新检测失败不影响正常使用
+            print_warning(f"更新检查失败: {e}")
 
     def main_menu(self):
         """主菜单"""

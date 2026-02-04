@@ -163,15 +163,24 @@ def main():
         prompt_update()
         return 0
 
-    # 启动时检查更新（静默模式）
+    # 启动时检查更新（交互模式）
     if not args.no_update_check:
         try:
-            from updater import check_update
+            from updater import check_update, prompt_update
             update_info = check_update(silent=True)
             if update_info:
-                print(f"[提示] 发现新版本 v{update_info['latest_version']}，运行 --check-update 查看详情")
+                print(f"[更新] 发现新版本 v{update_info['latest_version']}")
                 print()
-        except:
+                choice = input("是否现在更新？[Y/n]: ").strip().lower()
+                if choice != 'n':
+                    prompt_update()
+                    # 更新后退出，让用户重新运行
+                    print()
+                    print("[提示] 请重新运行程序以使用新版本")
+                    return 0
+                print()
+        except Exception as e:
+            # 更新检测失败不影响正常使用
             pass
 
     if args.first_login:

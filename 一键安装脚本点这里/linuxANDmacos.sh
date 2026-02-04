@@ -6,7 +6,7 @@
 
 set -e
 
-VERSION="1.2.0"
+VERSION="1.3.0"
 
 # 颜色
 RED='\033[0;31m'
@@ -530,10 +530,11 @@ main_menu() {
         echo "│  6. 首次登录                             │"
         echo "│  7. 运行签到                             │"
         echo "│  8. 查看系统信息                         │"
+        echo "│  9. 检查更新                             │"
         echo "│  0. 退出                                 │"
         echo "└──────────────────────────────────────────┘"
         echo ""
-        read -p "请选择 [0-8]: " choice
+        read -p "请选择 [0-9]: " choice
 
         case $choice in
             0) exit 0 ;;
@@ -545,9 +546,77 @@ main_menu() {
             6) first_login ;;
             7) run_checkin ;;
             8) detect_system ;;
+            9) manual_update ;;
             *) print_error "无效选项" ;;
         esac
     done
+}
+
+# 检查更新
+check_update_on_start() {
+    # 检查是否有 venv 和 updater.py
+    if [ ! -f "venv/bin/python" ] || [ ! -f "updater.py" ]; then
+        return
+    fi
+
+    print_info "检查更新中..."
+
+    # 获取当前版本和最新版本
+    UPDATE_INFO=$(venv/bin/python -c "
+from updater import check_update
+from version import __version__
+info = check_update(silent=True)
+if info:
+    print(f'CURRENT={__version__}')
+    print(f'LATEST={info[\"latest_version\"]}')
+else:
+    print(f'CURRENT={__version__}')
+    print('LATEST=NONE')
+" 2>/dev/null)
+
+    if [ $? -ne 0 ]; then
+        print_warning "更新检查失败"
+        return
+    fi
+
+    CURRENT_VER=$(echo "$UPDATE_INFO" | grep "CURRENT=" | cut -d= -f2)
+    LATEST_VER=$(echo "$UPDATE_INFO" | grep "LATEST=" | cut -d= -f2)
+
+    if [ "$LATEST_VER" = "NONE" ]; then
+        print_success "当前版本 v$CURRENT_VER 已是最新"
+        echo ""
+        return
+    fi
+
+    echo ""
+    echo -e "${YELLOW}╔════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${YELLOW}║${NC}  发现新版本: v$LATEST_VER  (当前: v$CURRENT_VER)"
+    echo -e "${YELLOW}╚════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+
+    read -p "是否现在更新？[Y/n]: " do_update
+    if [ "$do_update" = "n" ] || [ "$do_update" = "N" ]; then
+        print_info "跳过更新"
+        echo ""
+        return
+    fi
+
+    echo ""
+    print_info "正在更新..."
+    venv/bin/python -c "from updater import prompt_update; prompt_update()"
+    echo ""
+    print_warning "更新完成，请重新运行此脚本"
+    read -p "按 Enter 键退出..."
+    exit 0
+}
+
+# 手动检查更新
+manual_update() {
+    if [ ! -f "venv/bin/python" ]; then
+        print_error "请先运行一键安装配置 Python 环境"
+        return
+    fi
+    venv/bin/python main.py --check-update
 }
 
 # 主入口
@@ -560,6 +629,10 @@ main() {
     fi
 
     detect_system
+
+    # 启动时检查更新
+    check_update_on_start
+
     main_menu
 }
 
