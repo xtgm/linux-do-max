@@ -217,27 +217,27 @@ class Checkin:
             print(f"[签到] 获取用户信息异常: {e}")
 
     def _browse_posts(self):
-        """浏览帖子"""
+        """浏览帖子（随机浏览，优先评论多的帖子）"""
         print(f"[签到] 开始浏览帖子，目标: {config.browse_count} 篇")
 
-        # 从多个页面获取帖子（热门 + 最新）
-        posts = self._get_posts_from_multiple_pages()
+        # 随机获取帖子（优先评论多的）
+        posts = self._get_random_posts_with_replies()
         if not posts:
             print("[签到] 未获取到帖子列表")
             return
 
-        # 随机打乱顺序
-        random.shuffle(posts)
-        print(f"[签到] 获取到 {len(posts)} 个帖子（已随机排序）")
+        print(f"[签到] 获取到 {len(posts)} 个帖子（按评论数排序后随机选取）")
 
         # 浏览帖子
         browse_count = min(config.browse_count, len(posts))
-        for i, post_url in enumerate(posts[:browse_count]):
+        for i, post_info in enumerate(posts[:browse_count]):
             if self.is_rate_limited():
                 print("[签到] 限流中，停止浏览")
                 break
 
-            print(f"[签到] 浏览帖子 {i + 1}/{browse_count}: {post_url}")
+            post_url = post_info['url']
+            reply_count = post_info.get('replies', 0)
+            print(f"[签到] 浏览帖子 {i + 1}/{browse_count} (评论:{reply_count}): {post_url}")
 
             if not self.browser.goto(post_url, wait=2):
                 continue
@@ -274,24 +274,31 @@ class Checkin:
                 if self._like_post():
                     self.stats['like_count'] += 1
 
-            # 随机等待
-            min_wait, max_wait = config.browse_interval
-            wait_time = random.uniform(min_wait, max_wait)
+            # 浏览结束后停留（15-60秒，评论越多停留越久）
+            base_wait = 15
+            extra_wait = min(reply_count * 0.5, 45)  # 每条评论+0.5秒，最多+45秒
+            wait_time = base_wait + extra_wait + random.uniform(0, 10)
+            print(f"[签到] 停留 {wait_time:.0f} 秒...")
             time.sleep(wait_time)
 
         print(f"[签到] 浏览完成，共浏览 {self.stats['browse_count']} 篇")
 
-    def _get_posts_from_multiple_pages(self) -> List[str]:
-        """从多个页面获取帖子（最新 + 新帖），随机混合"""
+    def _get_random_posts_with_replies(self) -> List[Dict]:
+        """随机获取帖子，优先评论多的帖子"""
         all_posts = []
 
-        # 要访问的页面列表（最新 + 新帖，避免重复点赞已浏览的热门帖）
-        pages = [
-            (f"{self.SITE_URL}/latest", "最新(Latest)"),
-            (f"{self.SITE_URL}/new", "新帖(New)"),
+        # 随机选择一个页面类型
+        page_types = [
+            (f"{self.SITE_URL}/latest", "最新"),
+            (f"{self.SITE_URL}/top", "热门"),
+            (f"{self.SITE_URL}/new", "新帖"),
         ]
 
-        for url, name in pages:
+        # 随机打乱页面顺序
+        random.shuffle(page_types)
+
+        # 只访问前2个页面（减少请求）
+        for url, name in page_types[:2]:
             print(f"[签到] 获取 {name} 帖子...")
             if not self.browser.goto(url, wait=3):
                 continue
@@ -301,38 +308,77 @@ class Checkin:
                 self.set_rate_limited()
                 break
 
-            # 获取帖子列表
-            posts = self._get_post_list()
+            # 获取帖子列表（带评论数）
+            posts = self._get_post_list_with_replies()
             if posts:
                 print(f"[签到] {name}: {len(posts)} 篇")
                 all_posts.extend(posts)
 
-        # 去重（保持顺序）
+        # 去重（按URL）
         seen = set()
         unique_posts = []
         for post in all_posts:
-            if post not in seen:
-                seen.add(post)
+            if post['url'] not in seen:
+                seen.add(post['url'])
                 unique_posts.append(post)
 
-        return unique_posts
+        # 按评论数排序（评论多的优先）
+        unique_posts.sort(key=lambda x: x.get('replies', 0), reverse=True)
 
-    def _get_post_list(self) -> List[str]:
-        """获取帖子列表"""
+        # 取前20个评论最多的，然后随机打乱
+        top_posts = unique_posts[:20]
+        random.shuffle(top_posts)
+
+        return top_posts
+
+    def _get_post_list_with_replies(self) -> List[Dict]:
+        """获取帖子列表（带评论数）"""
         posts = []
         try:
-            # 从列表区域获取帖子链接（使用正确的选择器）
-            topic_links = self.browser.page.eles("css:.topic-list-item a.title")
-            for link in topic_links:
-                href = link.attr("href")
-                if href:
+            # 获取帖子行
+            topic_rows = self.browser.page.eles("css:.topic-list-item")
+            for row in topic_rows:
+                try:
+                    # 获取链接
+                    link = row.ele("css:a.title", timeout=1)
+                    if not link:
+                        continue
+                    href = link.attr("href")
+                    if not href or "/t/" not in href:
+                        continue
                     if href.startswith("/"):
                         href = f"{self.SITE_URL}{href}"
-                    if "/t/" in href:
-                        posts.append(href)
+
+                    # 获取评论数
+                    replies = 0
+                    try:
+                        # 评论数在 .posts 或 .replies 列
+                        reply_cell = row.ele("css:.posts, .replies, .num.posts", timeout=1)
+                        if reply_cell:
+                            reply_text = reply_cell.text.strip()
+                            # 处理 "1.2k" 格式
+                            if 'k' in reply_text.lower():
+                                replies = int(float(reply_text.lower().replace('k', '')) * 1000)
+                            elif reply_text.isdigit():
+                                replies = int(reply_text)
+                    except:
+                        pass
+
+                    posts.append({
+                        'url': href,
+                        'replies': replies
+                    })
+                except:
+                    continue
 
             # 去重
-            posts = list(dict.fromkeys(posts))
+            seen = set()
+            unique_posts = []
+            for post in posts:
+                if post['url'] not in seen:
+                    seen.add(post['url'])
+                    unique_posts.append(post)
+            posts = unique_posts
 
         except Exception as e:
             print(f"[签到] 获取帖子列表异常: {e}")
